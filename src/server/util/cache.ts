@@ -20,7 +20,15 @@ export class TtlCache<T> {
   /** Laufende Berechnungen – verhindert paralleles Neuberechnen desselben Schlüssels. */
   private readonly inflight = new Map<string, Promise<T>>();
 
-  constructor(private readonly ttlMs: number) {}
+  // Feld ausgeschrieben statt als Parameter-Property: Letztere erzeugen
+  // Laufzeitcode, den Nodes Type-Stripping nicht unterstützt. Der Testlauf
+  // bräche mit ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX ab, sobald ein Test etwas
+  // importiert, das diese Datei mitzieht.
+  private readonly ttlMs: number;
+
+  constructor(ttlMs: number) {
+    this.ttlMs = ttlMs;
+  }
 
   get(key: string): T | undefined {
     const entry = this.entries.get(key);

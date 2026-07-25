@@ -264,6 +264,35 @@ describe("collectSignals – Konfliktauflösung", () => {
     assert.equal(signals.keywords[0]?.rising, true);
   });
 
+  it("mischt Bewertungen nur über Quellen, die sie kennen", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({
+          id: "etsy",
+          priority: 10,
+          confidence: 1,
+          payload: {
+            pricing: { currency: "EUR", min: 10, p25: 20, median: 30, p75: 40, max: 50, avgReviewsPerListing: 8 },
+          },
+        }),
+        provider({
+          id: "ebay",
+          priority: 12,
+          confidence: 1,
+          payload: {
+            // eBay weist Verkäuferbewertungen aus, nicht Listing-Bewertungen –
+            // und lässt das Feld deshalb leer.
+            pricing: { currency: "EUR", min: 10, p25: 20, median: 30, p75: 40, max: 50 },
+          },
+        }),
+      ],
+    });
+
+    // Die unwissende Quelle darf den Wert nicht gegen null ziehen.
+    assert.equal(signals.pricing?.avgReviewsPerListing, 8);
+  });
+
   it("normalisiert Produktarten-Anteile auf Summe 1", async () => {
     const signals = await collectSignals(QUERY, {
       now: NOW,
@@ -295,6 +324,121 @@ describe("collectSignals – Konfliktauflösung", () => {
     const total = signals.productTypes.reduce((sum, t) => sum + t.share, 0);
     assert.ok(Math.abs(total - 1) < 0.01, `Summe der Anteile war ${total}`);
     assert.equal(signals.productTypes[0]?.type, "T-Shirt");
+  });
+});
+
+/**
+ * Echte Marktplatzquellen liefern nur einen Teil des Wettbewerbsbildes: Eine
+ * Suchergebnisliste kennt ihre Trefferzahl, aber weder das Alter der Listings
+ * noch die Anbieterzahl jenseits der sichtbaren Seiten. Der Aggregator muss
+ * solche Teilbeiträge mit vollständigen zusammenführen, ohne die Lücken mit
+ * Nullen zu füllen – eine Sättigung von 0 läse sich als unbesetzter Markt.
+ */
+describe("collectSignals – unvollständige Wettbewerbsquellen", () => {
+  /** Eine Quelle nach Art von eBay: Trefferzahl und Konzentration, sonst nichts. */
+  const partial = {
+    listingCount: 24_000,
+    top10SharePct: 38,
+    entryBarrier: "low" as const,
+  };
+
+  /** Eine Quelle nach Art des Etsy-Mocks: alle Felder belegt. */
+  const complete = {
+    listingCount: 8_000,
+    activeSellers: 5_006,
+    saturationIndex: 64,
+    top10SharePct: 30,
+    medianListingAgeDays: 545,
+    newListings30dPct: 7.2,
+    entryBarrier: "medium" as const,
+  };
+
+  it("lässt leer, was keine Quelle kennt – statt null einzusetzen", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [provider({ id: "ebay", priority: 12, confidence: 0.9, payload: { competition: partial } })],
+    });
+
+    assert.equal(signals.competition?.listingCount, 24_000);
+    assert.equal(signals.competition?.top10SharePct, 38);
+
+    // Der entscheidende Teil: kein Wert, keine Zahl.
+    assert.equal(signals.competition?.saturationIndex, undefined, "Sättigung wurde erfunden");
+    assert.equal(signals.competition?.activeSellers, undefined, "Anbieterzahl wurde erfunden");
+    assert.equal(signals.competition?.medianListingAgeDays, undefined, "Listing-Alter wurde erfunden");
+    assert.equal(signals.competition?.newListings30dPct, undefined, "Neuzugänge wurden erfunden");
+  });
+
+  it("füllt fehlende Felder aus der Quelle, die sie kennt", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "ebay", priority: 12, confidence: 0.9, payload: { competition: partial } }),
+        provider({ id: "etsy", priority: 10, confidence: 0.9, payload: { competition: complete } }),
+      ],
+    });
+
+    // Die Trefferzahl kommt vom Leitmarkt – Listing-Zahlen verschiedener
+    // Marktplätze zu mitteln ergäbe eine Zahl, die es nirgends gibt.
+    assert.equal(signals.competition?.listingCount, 24_000);
+    // Die Lücken schließt die andere Quelle.
+    assert.equal(signals.competition?.saturationIndex, 64);
+    assert.equal(signals.competition?.activeSellers, 5_006);
+    assert.equal(signals.competition?.medianListingAgeDays, 545);
+  });
+
+  it("zieht einen bekannten Wert nicht gegen null, wenn eine Quelle schweigt", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        // Die schweigende Quelle wiegt schwerer – sie darf trotzdem nichts
+        // beitragen, wo sie nichts weiß.
+        provider({ id: "ebay", priority: 20, confidence: 1, payload: { competition: partial } }),
+        provider({ id: "etsy", priority: 5, confidence: 1, payload: { competition: complete } }),
+      ],
+    });
+
+    assert.equal(
+      signals.competition?.saturationIndex,
+      64,
+      "der einzige bekannte Wert muss unverändert durchkommen",
+    );
+  });
+
+  it("mischt gewichtet, sobald mehrere Quellen denselben Wert kennen", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({
+          id: "etsy",
+          priority: 10,
+          confidence: 1,
+          payload: { competition: { ...complete, saturationIndex: 60 } },
+        }),
+        provider({
+          id: "amazon",
+          priority: 10,
+          confidence: 1,
+          payload: { competition: { ...complete, saturationIndex: 80 } },
+        }),
+      ],
+    });
+
+    // Gleiches Gewicht → exaktes Mittel.
+    assert.equal(signals.competition?.saturationIndex, 70);
+  });
+
+  it("übernimmt die Einstiegshürde vom Leitmarkt, statt sie zu mitteln", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "ebay", priority: 12, confidence: 0.9, payload: { competition: partial } }),
+        provider({ id: "etsy", priority: 10, confidence: 0.9, payload: { competition: complete } }),
+      ],
+    });
+
+    // "low" und "medium" haben keine sinnvolle Mitte.
+    assert.equal(signals.competition?.entryBarrier, "low");
   });
 });
 
