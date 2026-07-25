@@ -1,7 +1,9 @@
 # Handoff: BrandOS — Research- & Decision-Intelligence-Plattform
 
 **Generated**: 2026-07-25
-**Branch**: `main` (zuletzt `b3247d3`, Working Tree sauber)
+**Branch**: `main`, Working Tree sauber, kein Remote
+(bewusst ohne Commit-Hash — der veraltet, sobald dieses Dokument selbst committet wird;
+`git log --oneline` ist die verlässliche Quelle)
 **Status**: Ready for Review — lauffähig, gebaut, getestet. Live-Datenquellen noch nicht implementiert.
 
 ## Goal
@@ -23,7 +25,7 @@ eigenständige Ableitung der Implementierungsreihenfolge. Oberfläche und Inhalt
 - [x] Services: Research, Discovery (TTL-Cache), Dashboard, Historie
 - [x] API: `/api/research`, `/api/analyses`, `/api/analyses/[id]`, `/api/health`
 - [x] UI: Design-Tokens (Light/Dark), UI-Primitiven, eigene SVG-Charts, 5 Seiten
-- [x] 24 Tests (Node-Testrunner) für Scoring, Math, Ideengenerator — grün
+- [x] 42 Tests (Node-Testrunner): Scoring, Math, Ideengenerator, Aggregator — grün
 - [x] README mit Architektur, Score-Tabelle, API und Entscheidungsbegründungen
 - [x] End-to-End im Browser verifiziert (Dashboard, Discovery, Recherche, Analyse-Detail)
 - [x] Git-Repository initialisiert, `.gitattributes` (LF-Normalisierung), Initial Commit auf `main`
@@ -91,13 +93,13 @@ Führte zu demselben `The "id" argument must be of type string`-Fehler. In Next 
 **Working**: Alles. `npm run dev` läuft ohne jede Konfiguration im synthetischen Modus.
 Verifiziert im Browser: Dashboard (Discovery in eigener Suspense-Grenze), Discovery mit
 Gruppierung nach Chancen-Art, Recherche mit Auto-Start aus `?term=`, Analyse-Detailseite,
-Historie. `npm run build`, `npx tsc --noEmit`, `npm run lint` (0 Warnungen) und `npm test`
-(24/24) sind grün.
+Historie, saisonale Fenster mit Peak-Badge. `npm run build`, `npx tsc --noEmit`,
+`npm run lint` (0 Warnungen) und `npm test` (42/42) sind grün.
 
 **Broken**: Nichts bekannt.
 
-**Uncommitted Changes**: Keine — Working Tree sauber. Der gesamte Stand liegt im Initial
-Commit `affb0f0` auf `main` (94 Dateien). Kein Remote konfiguriert.
+**Uncommitted Changes**: Keine — Working Tree sauber. Der Stand liegt vollständig in den
+Commits auf `main`; kein Remote konfiguriert (`git log --oneline` für die Historie).
 `.gitignore` deckt `node_modules`, `.next`, `.env*.local`, `next-env.d.ts`, `*.tsbuildinfo`
 und `.data` ab (verifiziert mit `git check-ignore -v`). In `.data/analyses/` liegen 6
 Testanalysen aus der Verifikation; sie sind ignoriert und können gelöscht werden.
@@ -116,6 +118,8 @@ stimmt: `git config user.name "…"` und `git commit --amend --reset-author --no
 | `src/server/providers/types.ts` | Der `DataProvider`-Vertrag — Ausgangspunkt für jede neue Quelle. |
 | `src/server/providers/registry.ts` | Einziger Ort, der konkrete Provider kennt. Live gewinnt gegen Mock. |
 | `src/server/providers/aggregator.ts` | Zusammenführung, Konfliktauflösung, `dataQuality`-Berechnung. |
+| `src/server/providers/aggregator.test.ts` | 15 Tests — zugleich Vorlage für Fake-Provider in weiteren Tests. |
+| `src/server/services/discovery-service.ts` | Kandidatensuche, schlanker Scan, Auflösung der Saisonlage. |
 | `src/server/providers/mock/market-fixture.ts` | Erzeugt die synthetische Marktwahrheit; alle Mocks projizieren daraus. |
 | `src/server/ai/anthropic-analyst.ts` | Modellaufruf. Nie gegen ein echtes Modell gelaufen. |
 | `src/server/ai/index.ts` | Fallback-Logik Modell → Heuristik. |
@@ -156,6 +160,9 @@ Mehr ist nicht nötig — `resolveProviders()` bevorzugt bei gleicher `id` autom
 **Konfliktauflösung im Aggregator** (relevant, wenn Live- und Mock-Daten gemischt auftreten):
 
 ```ts
+// collectSignals(query, options) — options.providers überschreibt die Registry
+// (nur für Tests; siehe src/server/providers/aggregator.test.ts als Vorlage).
+//
 // Gewicht eines Beitrags = provider.priority * result.confidence
 // - demand:      Zeitreihe von der stärksten Quelle, Wachstumsraten gewichtet gemischt
 // - competition: listingCount/activeSellers vom Leitmarkt, Rest gemischt
@@ -163,6 +170,21 @@ Mehr ist nicht nötig — `resolveProviders()` bevorzugt bei gleicher `id` autom
 // - seasonality/audience/design: pickBest — stärkster Beitrag unverändert
 // - keywords:    Union, mehrfach bestätigte zuerst
 ```
+
+**Saisonlage eines Discovery-Kandidaten** (`DiscoveryOpportunity.seasonality`, optional):
+
+```ts
+interface SeasonalWindow {
+  peakMonths: number[];    // 1..12
+  monthsToPeak: number;    // 0 = Peak läuft gerade
+  nextPeakMonth: number;   // der Peak, auf den monthsToPeak zeigt
+  amplitude: number;       // 0..1, unter 0.15 gilt der Markt als ganzjährig
+}
+```
+
+`nextPeakMonth` ist **nicht** `peakMonths[0]`: Bei mehreren Peaks kann der
+nächstgelegene ein späterer Eintrag sein. Das Feld existiert genau deshalb —
+die Darstellung soll es nicht erneut herleiten müssen.
 
 **API-Antwortform** (`POST /api/research`):
 
