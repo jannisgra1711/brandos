@@ -1,7 +1,7 @@
 # Handoff: BrandOS — Research- & Decision-Intelligence-Plattform
 
 **Generated**: 2026-07-25
-**Branch**: — (kein Git-Repository; `git init` wurde nicht ausgeführt)
+**Branch**: `main` (Initial Commit `affb0f0`, Working Tree sauber)
 **Status**: Ready for Review — lauffähig, gebaut, getestet. Live-Datenquellen noch nicht implementiert.
 
 ## Goal
@@ -26,10 +26,10 @@ eigenständige Ableitung der Implementierungsreihenfolge. Oberfläche und Inhalt
 - [x] 24 Tests (Node-Testrunner) für Scoring, Math, Ideengenerator — grün
 - [x] README mit Architektur, Score-Tabelle, API und Entscheidungsbegründungen
 - [x] End-to-End im Browser verifiziert (Dashboard, Discovery, Recherche, Analyse-Detail)
+- [x] Git-Repository initialisiert, `.gitattributes` (LF-Normalisierung), Initial Commit auf `main`
 
 ## Not Yet Done
 
-- [ ] **`git init`** — das Projekt steht unversioniert auf der Platte. Erster sinnvoller Schritt.
 - [ ] **Erster echter Provider.** Empfehlung: Google Trends via SerpAPI (`SERPAPI_KEY` ist in `.env.example` vorbereitet). Er ist die Leitquelle für `demand`/`seasonality` und hat mit `priority: 20` bereits das höchste Gewicht.
 - [ ] **AI-Pfad gegen ein echtes Modell testen.** `anthropicAnalyst` ist vollständig implementiert, aber nie mit gesetztem `ANTHROPIC_API_KEY` gelaufen — der Heuristik-Fallback greift derzeit immer.
 - [ ] Discovery-Kandidaten aus echten Trendsignalen statt aus `discovery-seeds.ts` speisen
@@ -93,9 +93,15 @@ Historie. `npm run build`, `npx tsc --noEmit`, `npm run lint` (0 Warnungen) und 
 
 **Broken**: Nichts bekannt.
 
-**Uncommitted Changes**: Kein Git-Repository — der gesamte Stand ist unversioniert.
-`.gitignore` ist vorhanden und deckt `node_modules`, `.next`, `.env*.local` und `.data` ab.
-In `.data/analyses/` liegen 6 Testanalysen aus der Verifikation; sie können gelöscht werden.
+**Uncommitted Changes**: Keine — Working Tree sauber. Der gesamte Stand liegt im Initial
+Commit `affb0f0` auf `main` (94 Dateien). Kein Remote konfiguriert.
+`.gitignore` deckt `node_modules`, `.next`, `.env*.local`, `next-env.d.ts`, `*.tsbuildinfo`
+und `.data` ab (verifiziert mit `git check-ignore -v`). In `.data/analyses/` liegen 6
+Testanalysen aus der Verifikation; sie sind ignoriert und können gelöscht werden.
+
+**Git-Identität**: **repo-lokal** gesetzt auf `Jannis Grajczyk <jannis.grajczyk@gmail.com>` —
+global war keine konfiguriert. Der Name ist aus der E-Mail-Adresse abgeleitet; falls er nicht
+stimmt: `git config user.name "…"` und `git commit --amend --reset-author --no-edit`.
 
 ## Files to Know
 
@@ -171,20 +177,14 @@ Mehr ist nicht nötig — `resolveProviders()` bevorzugt bei gleicher `id` autom
 
 ## Resume Instructions
 
-1. **Versionierung herstellen** (empfohlen als Erstes):
-   ```bash
-   git init && git add -A && git commit -m "BrandOS: Grundgerüst, Provider-Schicht, Scoring, UI"
-   ```
-   - Erwartet: `.data/`, `node_modules/`, `.next/` bleiben durch `.gitignore` außen vor.
-
-2. **Baseline prüfen**:
+1. **Baseline prüfen**:
    ```bash
    npm run typecheck && npm run lint && npm test && npm run build
    ```
    - Erwartet: keine Fehler, 24/24 Tests, Build listet 10 Routen.
    - Falls TypeScript-Fehler zu Next-Typen: `.next/` löschen und erneut bauen.
 
-3. **App starten und Betriebsmodus prüfen**:
+2. **App starten und Betriebsmodus prüfen**:
    ```bash
    npm run dev
    ```
@@ -192,13 +192,13 @@ Mehr ist nicht nötig — `resolveProviders()` bevorzugt bei gleicher `id` autom
    - Erwartet: `{"status":"ok","dataMode":"mock","analyst":"heuristic","providers":{"registered":6,"active":[…]}}`
    - Zeigt `analyst: "heuristic"` obwohl `ANTHROPIC_API_KEY` gesetzt ist: `BRANDOS_AI_MODE` steht auf `heuristic`.
 
-4. **AI-Pfad verifizieren** (falls ein Key vorliegt):
+3. **AI-Pfad verifizieren** (falls ein Key vorliegt):
    `.env.local` mit `ANTHROPIC_API_KEY=…` anlegen, Server neu starten, dann eine Analyse
    über die Recherche-Seite starten.
    - Erwartet: Auf der Analyse-Detailseite **fehlt** der graue Hinweis „Diese Interpretation stammt aus der regelbasierten Auswertung", und `POST /api/research` liefert `"analyst": "anthropic"`.
    - Bleibt es bei `heuristic`: Serverlog prüfen — `WARN brandos:ai – Modell nicht nutzbar` nennt den Grund im Klartext (Ratenlimit, Schemafehler, Ablehnung).
 
-5. **Ersten Live-Provider bauen** (`src/server/providers/live/google-trends.ts`):
+4. **Ersten Live-Provider bauen** (`src/server/providers/live/google-trends.ts`):
    - `DataProvider` implementieren, `kind: "live"`, `priority: 20`, `isAvailable()` gegen `getConfig().providers.keys.serpApi`
    - In `registry.ts` registrieren
    - Verifikation: `/api/health` zeigt `dataMode: "mixed"` und `google-trends` mit `kind: "live"`; im Analyse-UI wechselt das Quellenprotokoll für diese Zeile auf „Live-Daten".
