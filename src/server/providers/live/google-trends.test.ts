@@ -4,7 +4,7 @@ import type { MarketQuery } from "@/domain/types";
 import { resetConfig } from "@/server/config/env";
 import type { Logger } from "@/server/logging/logger";
 import type { ProviderContext } from "../types";
-import { googleTrendsProvider } from "./google-trends";
+import { googleTrendsProvider, resetGoogleTrendsInfrastructure } from "./google-trends";
 
 /**
  * Der erste Live-Provider. Was hier abgesichert wird, ist nicht die
@@ -77,14 +77,24 @@ function stubFetch(handler: (url: string) => { status?: number; body: unknown })
   };
 }
 
+/**
+ * Der Antwort-Cache wird hier abgeschaltet: diese Tests prüfen die
+ * Aufbereitung, nicht das Zwischenspeichern. Sonst schriebe jeder Lauf in
+ * `.data/` und der zweite Test sähe die Antwort des ersten.
+ * Der Cache selbst ist in `util/response-cache.test.ts` abgesichert.
+ */
 function withKey(key = "test-key"): void {
   process.env.SERPAPI_KEY = key;
+  process.env.BRANDOS_PROVIDER_CACHE_TTL_MS = "0";
   resetConfig();
+  resetGoogleTrendsInfrastructure();
 }
 
 afterEach(() => {
   delete process.env.SERPAPI_KEY;
+  delete process.env.BRANDOS_PROVIDER_CACHE_TTL_MS;
   resetConfig();
+  resetGoogleTrendsInfrastructure();
 });
 
 describe("googleTrendsProvider – Verfügbarkeit", () => {

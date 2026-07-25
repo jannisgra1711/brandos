@@ -19,6 +19,14 @@ export interface AppConfig {
   };
   providers: {
     timeoutMs: number;
+    /**
+     * Ablagedauer der Provider-Antworten in Millisekunden. 0 schaltet den
+     * Cache ab – nur zum Debuggen sinnvoll, weil jeder Abruf dann echtes
+     * API-Kontingent kostet.
+     */
+    cacheTtlMs: number;
+    /** Gleichzeitige Abrufe je Live-Provider. */
+    maxConcurrent: number;
     keys: {
       etsy?: string;
       pinterest?: string;
@@ -35,9 +43,10 @@ export interface AppConfig {
   };
 }
 
-function readInt(value: string | undefined, fallback: number): number {
+function readInt(value: string | undefined, fallback: number, allowZero = false): number {
   const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  const min = allowZero ? 0 : 1;
+  return Number.isFinite(parsed) && parsed >= min ? parsed : fallback;
 }
 
 function readEnum<T extends string>(
@@ -63,6 +72,10 @@ function load(): AppConfig {
     },
     providers: {
       timeoutMs: readInt(process.env.BRANDOS_PROVIDER_TIMEOUT_MS, 8000),
+      // Zwölf Stunden: Trends-Daten werden täglich fortgeschrieben, nicht
+      // laufend. Häufiger abzufragen kostet Kontingent ohne Erkenntnisgewinn.
+      cacheTtlMs: readInt(process.env.BRANDOS_PROVIDER_CACHE_TTL_MS, 12 * 60 * 60 * 1000, true),
+      maxConcurrent: readInt(process.env.BRANDOS_PROVIDER_MAX_CONCURRENT, 3),
       keys: {
         etsy: optional(process.env.ETSY_API_KEY),
         pinterest: optional(process.env.PINTEREST_ACCESS_TOKEN),

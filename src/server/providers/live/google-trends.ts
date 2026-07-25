@@ -9,6 +9,8 @@ import type {
 import { getConfig } from "@/server/config/env";
 import type { DataProvider, ProviderResult } from "../types";
 import { ProviderError } from "../types";
+import { createLimiter } from "../util/concurrency";
+import { CachedFailure, ProviderResponseCache } from "../util/response-cache";
 
 /**
  * Google Trends über SerpAPI – die erste echte Datenquelle.
@@ -32,6 +34,45 @@ const ENDPOINT = "https://serpapi.com/search.json";
 
 /** Fünf Jahre liefern vier bis fünf vollständige Saisonzyklen. */
 const WINDOW = "today 5-y";
+
+/**
+ * „Kennt Google Trends nicht" ist eine Eigenschaft des Begriffs, keine
+ * Störung – ein erneuter Abruf würde dieselbe Antwort kosten. Der
+ * Discovery-Scan sieht dieselben Kandidaten immer wieder; ohne diese Regel
+ * wären tote Begriffe die teuersten im Lauf.
+ */
+function isStableFailure(error: unknown): boolean {
+  return error instanceof ProviderError && /returned any results/i.test(error.message);
+}
+
+let cache: ProviderResponseCache<ProviderResult> | undefined;
+let limit: ReturnType<typeof createLimiter> | undefined;
+
+/**
+ * Cache und Limiter lesen die Konfiguration – deshalb erst beim ersten
+ * Aufruf erzeugen, nicht beim Laden des Moduls. Sonst friert der Zustand
+ * ein, bevor `resetConfig()` in Tests greifen kann.
+ */
+function infrastructure() {
+  const { providers } = getConfig();
+  cache ??= new ProviderResponseCache<ProviderResult>({
+    namespace: "google-trends",
+    ttlMs: providers.cacheTtlMs,
+    // Tote Begriffe länger halten: die Antwort ändert sich seltener als
+    // die Zahlen eines lebendigen Marktes.
+    errorTtlMs: providers.cacheTtlMs * 2,
+    dataDir: getConfig().storage.dataDir,
+    isStableFailure,
+  });
+  limit ??= createLimiter(providers.maxConcurrent);
+  return { cache, limit };
+}
+
+/** Nur für Tests – verwirft Cache und Limiter samt Zustand. */
+export function resetGoogleTrendsInfrastructure(): void {
+  cache = undefined;
+  limit = undefined;
+}
 
 // --- Antwortform von SerpAPI (nur die Felder, die wir lesen) ---------------
 // Bewusst durchgehend optional: die Struktur gehört einem fremden Dienst.
@@ -64,62 +105,87 @@ export const googleTrendsProvider: DataProvider = {
   },
 
   async fetch(query, context): Promise<ProviderResult> {
-    const apiKey = getConfig().providers.keys.serpApi;
-    if (!apiKey) {
-      throw new ProviderError("google-trends", "Kein SERPAPI_KEY konfiguriert");
-    }
-
-    const params = new URLSearchParams({
-      engine: "google_trends",
-      q: query.term,
-      data_type: "TIMESERIES",
-      date: WINDOW,
-      geo: query.market ?? "DE",
-      hl: "de",
-      api_key: apiKey,
-    });
-
-    const response = await request(`${ENDPOINT}?${params}`, context.signal);
-
-    if (response.error) {
-      // SerpAPI meldet „keine Ergebnisse" als Fehlertext. Das ist eine
-      // Aussage über den Markt, keine Störung – für den Aggregator bleibt es
-      // trotzdem ein Ausfall dieser Quelle, damit es im Protokoll steht.
-      throw new ProviderError("google-trends", response.error);
-    }
-
-    const timeline = response.interest_over_time?.timeline_data ?? [];
-    const monthly = toMonthlySeries(timeline);
-
-    if (monthly.length < 6) {
-      throw new ProviderError(
-        "google-trends",
-        `Zu wenige Datenpunkte für eine Trendaussage (${monthly.length} Monate)`,
-      );
-    }
-
+    const { cache: responses, limit: run } = infrastructure();
+    const market = query.market ?? "DE";
     const windowMonths = query.windowMonths ?? 24;
-    const demand = buildDemand(monthly, windowMonths);
-    const seasonality = buildSeasonality(monthly);
 
-    context.logger.debug("Google Trends ausgewertet", {
-      term: query.term,
-      months: monthly.length,
-      volumeIndex: demand.volumeIndex,
-      direction: demand.direction,
-    });
+    // Das Fenster gehört in den Schlüssel: dieselbe Suche mit anderem
+    // Zeitraum ist eine andere Antwort.
+    const key = `${query.term.trim().toLowerCase()}|${market}|${windowMonths}`;
 
-    return {
-      confidence: confidenceFor(monthly.length),
-      synthetic: false,
-      // Trends aktualisiert die letzte Woche laufend; ein bis zwei Tage
-      // Verzug sind der Normalfall.
-      freshnessDays: 2,
-      message: `Live-Daten aus Google Trends (${monthly.length} Monate). Relativer Index, kein absolutes Suchvolumen.`,
-      payload: { demand, seasonality },
-    };
+    try {
+      return await responses.resolve(key, () => run(() => collect(query, market, windowMonths, context)));
+    } catch (error) {
+      // Ein Fehlschlag aus dem Cache soll sich für den Aggregator genauso
+      // verhalten wie ein frischer – gleicher Typ, gleiche Meldung.
+      if (error instanceof CachedFailure) {
+        throw new ProviderError("google-trends", error.message);
+      }
+      throw error;
+    }
   },
 };
+
+async function collect(
+  query: Parameters<DataProvider["fetch"]>[0],
+  market: string,
+  windowMonths: number,
+  context: Parameters<DataProvider["fetch"]>[1],
+): Promise<ProviderResult> {
+  const apiKey = getConfig().providers.keys.serpApi;
+  if (!apiKey) {
+    throw new ProviderError("google-trends", "Kein SERPAPI_KEY konfiguriert");
+  }
+
+  const params = new URLSearchParams({
+    engine: "google_trends",
+    q: query.term,
+    data_type: "TIMESERIES",
+    date: WINDOW,
+    geo: market,
+    hl: "de",
+    api_key: apiKey,
+  });
+
+  const response = await request(`${ENDPOINT}?${params}`, context.signal);
+
+  if (response.error) {
+    // SerpAPI meldet „keine Ergebnisse" als Fehlertext. Das ist eine
+    // Aussage über den Markt, keine Störung – für den Aggregator bleibt es
+    // trotzdem ein Ausfall dieser Quelle, damit es im Protokoll steht.
+    throw new ProviderError("google-trends", response.error);
+  }
+
+  const timeline = response.interest_over_time?.timeline_data ?? [];
+  const monthly = toMonthlySeries(timeline);
+
+  if (monthly.length < 6) {
+    throw new ProviderError(
+      "google-trends",
+      `Zu wenige Datenpunkte für eine Trendaussage (${monthly.length} Monate)`,
+    );
+  }
+
+  const demand = buildDemand(monthly, windowMonths);
+  const seasonality = buildSeasonality(monthly);
+
+  context.logger.debug("Google Trends ausgewertet", {
+    term: query.term,
+    months: monthly.length,
+    volumeIndex: demand.volumeIndex,
+    direction: demand.direction,
+  });
+
+  return {
+    confidence: confidenceFor(monthly.length),
+    synthetic: false,
+    // Trends aktualisiert die letzte Woche laufend; ein bis zwei Tage
+    // Verzug sind der Normalfall.
+    freshnessDays: 2,
+    message: `Live-Daten aus Google Trends (${monthly.length} Monate). Relativer Index, kein absolutes Suchvolumen.`,
+    payload: { demand, seasonality },
+  };
+}
 
 // --- Abruf ----------------------------------------------------------------
 

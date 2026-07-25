@@ -219,6 +219,8 @@ Alle Variablen sind optional. Siehe [`.env.example`](.env.example).
 | `BRANDOS_AI_MODE` | `auto` \| `anthropic` \| `heuristic` |
 | `ETSY_API_KEY`, `PINTEREST_ACCESS_TOKEN`, … | Aktivieren die jeweilige Live-Quelle |
 | `BRANDOS_PROVIDER_TIMEOUT_MS` | Timeout je Quelle, Standard 8000 |
+| `BRANDOS_PROVIDER_CACHE_TTL_MS` | Ablagedauer der Provider-Antworten, Standard 12 h; `0` schaltet ab |
+| `BRANDOS_PROVIDER_MAX_CONCURRENT` | Gleichzeitige Abrufe je Live-Quelle, Standard 3 |
 | `BRANDOS_DATA_DIR` | Speicherort des Datastores, Standard `.data` |
 | `BRANDOS_LOG_LEVEL` | `debug` \| `info` \| `warn` \| `error` |
 
