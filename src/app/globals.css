@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+/*
+ * BrandOS – Design Tokens
+ *
+ * Die Oberflaeche arbeitet mit wenigen, klar definierten Werten. Jede Farbe
+ * hat eine Rolle, keine Rolle hat zwei Farben. Komponenten greifen
+ * ausschliesslich auf diese Tokens zu – nie auf Rohwerte.
+ */
+
+:root {
+  --bg: #fbfbfc;
+  --bg-subtle: #f4f4f6;
+  --surface: #ffffff;
+  --surface-hover: #fafafa;
+  --border: #e6e6ea;
+  --border-strong: #d4d4d9;
+
+  --text: #18181b;
+  --text-muted: #6f6f78;
+  --text-faint: #9b9ba4;
+
+  --accent: #5b5bd6;
+  --accent-hover: #4f4fc4;
+  --accent-soft: #eeeefc;
+  --accent-text: #ffffff;
+
+  --positive: #0f9d76;
+  --positive-soft: #e6f6f0;
+  --warning: #b7791f;
+  --warning-soft: #fdf4e3;
+  --negative: #d64545;
+  --negative-soft: #fdeceb;
+
+  --grade-a: #0f9d76;
+  --grade-b: #5b5bd6;
+  --grade-c: #b7791f;
+  --grade-d: #d64545;
+
+  --radius: 0.75rem;
+  --shadow-sm: 0 1px 2px rgb(16 16 24 / 0.04), 0 1px 3px rgb(16 16 24 / 0.03);
+  --shadow-md: 0 2px 4px rgb(16 16 24 / 0.04), 0 8px 24px rgb(16 16 24 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #08080a;
+    --bg-subtle: #0e0e11;
+    --surface: #101014;
+    --surface-hover: #16161b;
+    --border: #23232a;
+    --border-strong: #33333d;
+
+    --text: #f4f4f6;
+    --text-muted: #9a9aa6;
+    --text-faint: #6b6b78;
+
+    --accent: #7b7bf0;
+    --accent-hover: #8f8ff5;
+    --accent-soft: #1a1a33;
+    --accent-text: #0b0b12;
+
+    --positive: #35c99b;
+    --positive-soft: #0f251f;
+    --warning: #e0a34a;
+    --warning-soft: #241c0f;
+    --negative: #f06a6a;
+    --negative-soft: #2a1414;
+
+    --grade-a: #35c99b;
+    --grade-b: #7b7bf0;
+    --grade-c: #e0a34a;
+    --grade-d: #f06a6a;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 2px 4px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.45);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-subtle: var(--bg-subtle);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+
+  --radius-card: var(--radius);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Feine, zurueckhaltende Scrollbars – die Oberflaeche soll ruhig wirken. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+/* --- Bewegung ------------------------------------------------------------ */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-rise {
+  animation: rise 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--surface-hover), transparent);
+  animation: shimmer 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

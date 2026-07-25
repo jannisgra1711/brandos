@@ -1,0 +1,15 @@
+# Zeilenenden im Repository immer als LF speichern, unabhängig vom Betriebssystem.
+# Ohne diese Regel erzeugt jeder Wechsel zwischen Windows und macOS/Linux
+# Diffs über ganze Dateien hinweg.
+* text=auto eol=lf
+
+# Binärdateien nicht normalisieren.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.pdf   binary
