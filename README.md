@@ -7,6 +7,45 @@ mehreren Quellen, bewertet sie mit einem nachvollziehbaren Opportunity Score,
 interpretiert das Ergebnis und leitet daraus konkrete Produktideen ab. Jede Aussage
 ist auf ihre Quelle zurückführbar.
 
+---
+
+## About this project (English)
+
+BrandOS is a market-research tool that one person runs locally on their own
+computer. It is not a hosted service, it is not offered to anyone else, and it has
+no user accounts.
+
+**What it does.** For a search term entered by the operator, it queries public data
+sources, derives aggregate statistics from the results, and combines them into a
+transparent opportunity score with a written interpretation.
+
+**How marketplace data is used.** Only aggregate figures are computed and kept:
+number of active listings, number of distinct sellers, price percentiles, category
+shares, colour and style distributions, keyword frequencies. The data model has no
+representation for an individual listing, shop, or seller — there is no field
+anywhere that could hold a listing ID, shop name, seller name, or URL (see
+[`src/domain/types.ts`](src/domain/types.ts)). Nothing is republished,
+redistributed, resold, or shared with anyone.
+
+**Where data goes.** Results are written to JSON files on the operator's own
+machine. Optionally, the aggregate figures described above are sent to the
+Anthropic API so a language model can write the interpretation; no listing, shop,
+or seller data is part of that request, because none is ever collected. Setting
+`BRANDOS_AI_MODE=heuristic` disables that step, after which no data leaves the
+machine at all.
+
+**Privacy.** No personal data is collected, stored, or transmitted. No analytics,
+no telemetry, no third-party tracking. The application has no users besides the
+operator running it.
+
+**Scale.** A single operator, queries started by hand, a few analyses per day.
+
+**Current status.** No live data source is connected yet. The application ships
+with synthetic mock providers and today runs entirely on generated data; real
+integrations are being added one at a time.
+
+---
+
 ```bash
 npm install
 npm run dev
