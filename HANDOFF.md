@@ -1,7 +1,7 @@
 # Handoff: BrandOS — Research- & Decision-Intelligence-Plattform
 
 **Generated**: 2026-07-25
-**Branch**: `main` (Initial Commit `affb0f0`, Working Tree sauber)
+**Branch**: `main` (zuletzt `b3247d3`, Working Tree sauber)
 **Status**: Ready for Review — lauffähig, gebaut, getestet. Live-Datenquellen noch nicht implementiert.
 
 ## Goal
@@ -27,14 +27,17 @@ eigenständige Ableitung der Implementierungsreihenfolge. Oberfläche und Inhalt
 - [x] README mit Architektur, Score-Tabelle, API und Entscheidungsbegründungen
 - [x] End-to-End im Browser verifiziert (Dashboard, Discovery, Recherche, Analyse-Detail)
 - [x] Git-Repository initialisiert, `.gitattributes` (LF-Normalisierung), Initial Commit auf `main`
+- [x] Saisonale Fenster aus echtem Peak-Abstand (ersetzt die frühere Näherung), Peak-Badge auf der Chancen-Karte
+- [x] Aggregator mit 15 Tests abgesichert — Teilausfälle, Konfliktauflösung, Datenqualität, Fähigkeitsfilter
 
 ## Not Yet Done
 
 - [ ] **Erster echter Provider.** Empfehlung: Google Trends via SerpAPI (`SERPAPI_KEY` ist in `.env.example` vorbereitet). Er ist die Leitquelle für `demand`/`seasonality` und hat mit `priority: 20` bereits das höchste Gewicht.
 - [ ] **AI-Pfad gegen ein echtes Modell testen.** `anthropicAnalyst` ist vollständig implementiert, aber nie mit gesetztem `ANTHROPIC_API_KEY` gelaufen — der Heuristik-Fallback greift derzeit immer.
 - [ ] Discovery-Kandidaten aus echten Trendsignalen statt aus `discovery-seeds.ts` speisen
-- [ ] `SeasonalityPanel` in der Discovery-Bewertung: `selectSeasonalWindows()` in `dashboard-service.ts` nutzt aktuell eine Näherung (Provider-`kind`), weil der Discovery-Scan keine Saisonsignale sammelt
 - [ ] `DELETE /api/analyses/:id` hat keine UI-Anbindung (nur API)
+- [ ] Repository ungetestet (Index-Konsistenz, `saved`-Erhalt beim Überschreiben, Pfad-Traversal)
+- [ ] Heuristik-Analyst ungetestet (Insight-Auswahl, Trendkonsistenz)
 - [ ] Provider-Capabilities `ebay` und `youtube` sind in `SOURCE_IDS` deklariert, aber ohne Implementierung
 
 ## Failed Approaches (Don't Repeat These)
@@ -181,7 +184,7 @@ Mehr ist nicht nötig — `resolveProviders()` bevorzugt bei gleicher `id` autom
    ```bash
    npm run typecheck && npm run lint && npm test && npm run build
    ```
-   - Erwartet: keine Fehler, 24/24 Tests, Build listet 10 Routen.
+   - Erwartet: keine Fehler, 42/42 Tests, Build listet 10 Routen.
    - Falls TypeScript-Fehler zu Next-Typen: `.next/` löschen und erneut bauen.
 
 2. **App starten und Betriebsmodus prüfen**:
@@ -222,6 +225,8 @@ Mehr ist nicht nötig — `resolveProviders()` bevorzugt bei gleicher `id` autom
 
 ## Warnings
 
+- **Keine TypeScript-Parameter-Properties** (`constructor(readonly x: T)`). Sie erzeugen Laufzeitcode, den Nodes Type-Stripping nicht unterstützt — der Testlauf bricht mit `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` ab. Felder ausschreiben.
+- **Tests laufen mit `--conditions=react-server`**, damit `server-only` auf die leere Variante auflöst. Ohne das schlägt jeder Test fehl, der ein Servermodul importiert.
 - **`round()` nicht in deutschen Sätzen verwenden.** Erzeugt `36.2` statt `36,2`. Immer `de()`/`dePercent()`/`deShare()`/`deCompact()` aus `src/domain/format.ts`.
 - **Kein `toLowerCase()` auf deutschen Text.** Substantive bleiben großgeschrieben. Dieser Bug war zweimal vorhanden (Ideentitel, Discovery-Hinweise).
 - **Mock-Provider werfen absichtlich Fehler** (4–8 % Wahrscheinlichkeit, seed-abhängig) und simulieren Latenz. Sporadische `WARN brandos:aggregator – Provider fehlgeschlagen`-Einträge sind erwartetes Verhalten, kein Defekt.
