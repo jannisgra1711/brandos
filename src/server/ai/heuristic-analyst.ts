@@ -60,8 +60,13 @@ function buildSummary(signals: MarketSignals, score: OpportunityScore): string {
   }
 
   if (signals.competition) {
+    const c = signals.competition;
+    const saturation =
+      c.saturationIndex === undefined
+        ? ""
+        : ` bei einer Sättigung von ${de(c.saturationIndex)}/100`;
     parts.push(
-      `Auf der Angebotsseite stehen ${deCompact(signals.competition.listingCount)} Listings bei einer Sättigung von ${de(signals.competition.saturationIndex)}/100; die Top 10 halten ${de(signals.competition.top10SharePct)} % des Marktes.`,
+      `Auf der Angebotsseite stehen ${deCompact(c.listingCount)} Listings${saturation}; die Top 10 halten ${de(c.top10SharePct)} % des Marktes.`,
     );
   }
 
@@ -160,22 +165,28 @@ function buildInsights(signals: MarketSignals): Insight[] {
   // --- Wettbewerb -----------------------------------------------------------
   if (signals.competition) {
     const c = signals.competition;
-    const crowded = c.saturationIndex > 70;
+    // Ohne Sättigungswert trägt der Top-10-Anteil die Aussage: er misst
+    // dasselbe aus anderer Richtung – wie verteilt der Markt ist.
+    const crowded =
+      c.saturationIndex === undefined ? c.top10SharePct > 40 : c.saturationIndex > 70;
+    const saturationPhrase =
+      c.saturationIndex === undefined ? "" : `${de(c.saturationIndex)}/100 Sättigung und `;
+
     insights.push({
       kind: crowded ? "risk" : "opportunity",
       title: crowded ? "Markt ist dicht besetzt" : "Wettbewerb lässt Raum",
       detail: crowded
-        ? `Bei ${de(c.saturationIndex)}/100 Sättigung und ${de(c.newListings30dPct, 1)} % Neuzugängen in 30 Tagen entscheidet die Sichtbarkeit, nicht das Produkt.`
-        : `Mit ${de(c.saturationIndex)}/100 Sättigung und einem Top-10-Anteil von ${de(c.top10SharePct)} % ist der Markt verteilt genug für neue Anbieter.`,
+        ? `Bei ${saturationPhrase}einem Top-10-Anteil von ${de(c.top10SharePct)} % entscheidet die Sichtbarkeit, nicht das Produkt.`
+        : `Mit ${saturationPhrase}einem Top-10-Anteil von ${de(c.top10SharePct)} % ist der Markt verteilt genug für neue Anbieter.`,
       confidence: round(confidence, 2),
       evidence: [
         `Listings: ${deCompact(c.listingCount)}`,
-        `Sättigung: ${de(c.saturationIndex)}/100`,
+        ...(c.saturationIndex === undefined ? [] : [`Sättigung: ${de(c.saturationIndex)}/100`]),
         `Einstiegshürde: ${c.entryBarrier}`,
       ],
     });
 
-    if (c.medianListingAgeDays < 400) {
+    if (c.medianListingAgeDays !== undefined && c.medianListingAgeDays < 400) {
       insights.push({
         kind: "pattern",
         title: "Junges Bestandsangebot",

@@ -78,11 +78,21 @@ export function buildMarketBrief(
   if (signals.competition) {
     const c = signals.competition;
     push("## Wettbewerb");
-    push(`Listings: ${c.listingCount} | Aktive Anbieter: ${c.activeSellers}`);
-    push(`Sättigung: ${c.saturationIndex}/100 | Top-10-Anteil: ${c.top10SharePct} %`);
+    // Nur nennen, was gemessen wurde – eine fehlende Zeile ist für das
+    // Modell eine Lücke, eine Null wäre eine Behauptung.
     push(
-      `Medianalter der Listings: ${c.medianListingAgeDays} Tage | Neuzugänge (30 T.): ${c.newListings30dPct} %`,
+      `Listings: ${c.listingCount}` +
+        (c.activeSellers === undefined ? "" : ` | Aktive Anbieter: ${c.activeSellers}`),
     );
+    push(
+      (c.saturationIndex === undefined ? "" : `Sättigung: ${c.saturationIndex}/100 | `) +
+        `Top-10-Anteil: ${c.top10SharePct} %`,
+    );
+    if (c.medianListingAgeDays !== undefined && c.newListings30dPct !== undefined) {
+      push(
+        `Medianalter der Listings: ${c.medianListingAgeDays} Tage | Neuzugänge (30 T.): ${c.newListings30dPct} %`,
+      );
+    }
     push(`Einstiegshürde: ${c.entryBarrier}`);
     push("");
   }
@@ -94,7 +104,9 @@ export function buildMarketBrief(
     push(
       `Median ${p.median} ${p.currency} | Band ${p.p25}–${p.p75} ${p.currency} | Spanne ${p.min}–${p.max} ${p.currency}`,
     );
-    push(`Durchschnittliche Bewertungen je Listing: ${p.avgReviewsPerListing}`);
+    if (p.avgReviewsPerListing !== undefined) {
+      push(`Durchschnittliche Bewertungen je Listing: ${p.avgReviewsPerListing}`);
+    }
     push("");
   }
 

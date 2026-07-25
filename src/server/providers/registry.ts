@@ -1,6 +1,7 @@
 import "server-only";
 import type { Capability, SourceId } from "@/domain/types";
 import { logger } from "@/server/logging/logger";
+import { ebayProvider } from "./live/ebay";
 import { googleTrendsProvider } from "./live/google-trends";
 import { amazonMockProvider } from "./mock/amazon-mock";
 import { etsyMockProvider } from "./mock/etsy-mock";
@@ -31,6 +32,7 @@ export function registerProvider(provider: DataProvider): void {
 // zusätzlich registriert, sobald sie implementiert sind.
 [
   googleTrendsProvider,
+  ebayProvider,
   googleTrendsMockProvider,
   etsyMockProvider,
   redditMockProvider,

@@ -217,6 +217,7 @@ Alle Variablen sind optional. Siehe [`.env.example`](.env.example).
 | `ANTHROPIC_API_KEY` | Aktiviert die modellgestützte Interpretation |
 | `BRANDOS_AI_MODEL` | Modell-ID, Standard `claude-opus-5` |
 | `BRANDOS_AI_MODE` | `auto` \| `anthropic` \| `heuristic` |
+| `SERPAPI_KEY` | Aktiviert Google Trends (Nachfrage) und eBay (Angebotsseite) |
 | `ETSY_API_KEY`, `PINTEREST_ACCESS_TOKEN`, … | Aktivieren die jeweilige Live-Quelle |
 | `BRANDOS_PROVIDER_TIMEOUT_MS` | Timeout je Quelle, Standard 8000 |
 | `BRANDOS_PROVIDER_CACHE_TTL_MS` | Ablagedauer der Provider-Antworten, Standard 12 h; `0` schaltet ab |

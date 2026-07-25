@@ -36,6 +36,26 @@ export function median(values: readonly number[]): number {
 }
 
 /**
+ * Perzentil einer Stichprobe, linear interpoliert (`p` als Anteil, 0..1).
+ *
+ * Wird für Preisverteilungen aus echten Listings gebraucht: der Median
+ * allein verschweigt, wie breit ein Markt preislich gestreut ist.
+ */
+export function percentile(values: readonly number[], p: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted.length === 1) return sorted[0] ?? 0;
+
+  const position = clamp(p, 0, 1) * (sorted.length - 1);
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  if (lower === upper) return sorted[lower] ?? 0;
+
+  const weight = position - lower;
+  return (sorted[lower] ?? 0) * (1 - weight) + (sorted[upper] ?? 0) * weight;
+}
+
+/**
  * Normalisierte Shannon-Entropie (0..1) einer Verteilung. 1 bedeutet
  * gleichmäßige Streuung, 0 vollständige Konzentration auf ein Element.
  */

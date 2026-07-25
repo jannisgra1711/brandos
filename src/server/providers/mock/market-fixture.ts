@@ -35,10 +35,10 @@ export interface MarketFixture {
   term: string;
   category: string;
   profileKey: string;
-  demand: DemandSignal;
+  demand: MockDemand;
   seasonality: SeasonalitySignal;
-  competition: CompetitionSignal;
-  pricing: PricingSignal;
+  competition: MockCompetition;
+  pricing: MockPricing;
   audience: AudienceSignal;
   design: DesignSignal;
   keywords: KeywordSignal[];
@@ -137,12 +137,22 @@ function buildSeasonality(profile: NicheProfile | undefined, rng: Rng): Seasonal
 // --- Nachfrage -------------------------------------------------------------
 
 /**
- * Im synthetischen Markt ist das Absolutvolumen immer bekannt – es ist ja
- * erfunden. Echte Quellen wie Google Trends kennen es nicht, deshalb ist das
- * Feld im Domänentyp optional. Diese Verschärfung hält die Invariante des
- * Fixtures fest, ohne sie mit einer Nicht-null-Assertion zu behaupten.
+ * Der synthetische Markt kennt alles – er ist ja erfunden. Echte Quellen
+ * kennen weniger: Google Trends kein absolutes Suchvolumen, eine
+ * Marktplatzsuche kein Listing-Alter. Im Domänentyp sind diese Felder
+ * deshalb optional. Diese Verschärfungen halten die Invariante des Fixtures
+ * fest, ohne sie mit Nicht-null-Assertionen zu behaupten.
  */
 type MockDemand = DemandSignal & { estimatedMonthlySearches: number };
+
+type MockCompetition = CompetitionSignal & {
+  activeSellers: number;
+  saturationIndex: number;
+  medianListingAgeDays: number;
+  newListings30dPct: number;
+};
+
+type MockPricing = PricingSignal & { avgReviewsPerListing: number };
 
 function buildDemand(
   profile: NicheProfile | undefined,
@@ -213,7 +223,7 @@ function buildCompetition(
   profile: NicheProfile | undefined,
   demand: MockDemand,
   rng: Rng,
-): CompetitionSignal {
+): MockCompetition {
   const baseSaturation = profile?.baseSaturation ?? rng.range(45, 75);
   // Wachsende Märkte ziehen Anbieter an – der Zustrom folgt dem Trend
   // verzögert, weshalb schnelle Trends kurzfristig unterversorgt bleiben.
@@ -254,7 +264,7 @@ function buildCompetition(
 
 // --- Preise ----------------------------------------------------------------
 
-function buildPricing(profile: NicheProfile | undefined, rng: Rng): PricingSignal {
+function buildPricing(profile: NicheProfile | undefined, rng: Rng): MockPricing {
   const median = round(clamp(rng.gaussian(profile?.priceLevel ?? 23, 5), 8, 90), 2);
   const spread = rng.range(0.25, 0.95);
 
@@ -383,7 +393,7 @@ function buildKeywords(
   term: string,
   profile: NicheProfile | undefined,
   demand: DemandSignal,
-  competition: CompetitionSignal,
+  competition: MockCompetition,
   rng: Rng,
 ): KeywordSignal[] {
   const modifiers = profile?.keywordModifiers ?? GENERIC.keywordModifiers;

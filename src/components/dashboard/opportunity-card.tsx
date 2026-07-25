@@ -70,7 +70,14 @@ export function OpportunityCard({ opportunity }: { opportunity: DiscoveryOpportu
       <dl className="mt-3 grid grid-cols-3 gap-px border-t border-border bg-border">
         <Metric label="Score" value={`${Math.round(opportunity.score)}`} />
         <Metric label="90 Tage" value={formatPercent(opportunity.growth90d)} />
-        <Metric label="Sättigung" value={formatScore(opportunity.saturationIndex)} />
+        <Metric
+          label="Sättigung"
+          value={
+            opportunity.saturationIndex === undefined
+              ? "—"
+              : formatScore(opportunity.saturationIndex)
+          }
+        />
       </dl>
 
       <div className="flex flex-wrap items-center gap-2 bg-surface px-5 py-3">

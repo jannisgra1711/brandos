@@ -88,8 +88,12 @@ export async function trendMovers(
       .sort((a, b) => b.growth90d - a.growth90d)
       .slice(0, 6)
       .map(toMover),
-    saturated: [...opportunities]
-      .sort((a, b) => b.saturationIndex - a.saturationIndex)
+    // Kandidaten ohne Sättigungswert gehören nicht in eine Rangfolge nach
+    // Sättigung – sie stünden sonst nur deshalb weit unten, weil niemand
+    // gemessen hat.
+    saturated: opportunities
+      .filter((o) => o.saturationIndex !== undefined)
+      .sort((a, b) => (b.saturationIndex ?? 0) - (a.saturationIndex ?? 0))
       .slice(0, 5)
       .map(toMover),
   };
@@ -176,13 +180,15 @@ async function scanSeed(seed: DiscoverySeed, now: Date): Promise<DiscoveryOpport
         ? `Nachfrageindex ${demand.volumeIndex}/100`
         : `Nachfrageindex ${demand.volumeIndex}/100 bei ${deCompact(demand.estimatedMonthlySearches)} Suchen/Monat`,
       `Entwicklung ${dePercent(demand.growth90d)} in 90 Tagen`,
-      competition
-        ? `Sättigung ${de(competition.saturationIndex)}/100 bei ${deCompact(competition.listingCount)} Listings`
-        : "Keine Wettbewerbsdaten verfügbar",
+      competition === undefined
+        ? "Keine Wettbewerbsdaten verfügbar"
+        : competition.saturationIndex === undefined
+          ? `${deCompact(competition.listingCount)} Listings im Angebot`
+          : `Sättigung ${de(competition.saturationIndex)}/100 bei ${deCompact(competition.listingCount)} Listings`,
     ],
     demandIndex: demand.volumeIndex,
     growth90d: demand.growth90d,
-    saturationIndex: competition?.saturationIndex ?? 50,
+    saturationIndex: competition?.saturationIndex,
     direction: demand.direction,
     sparkline: demand.series.slice(-12).map((p) => p.value),
     seasonality,

@@ -127,34 +127,52 @@ export function CompetitionPanel({ signals }: { signals: MarketSignals }) {
         }
       />
       <CardBody className="space-y-4 pt-4">
-        <div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm text-muted">Sättigung</span>
-            <span className="text-sm font-medium tabular-nums text-text">
-              {formatNumber(competition.saturationIndex)} / 100
-            </span>
+        {/* Der Sättigungsbalken erscheint nur, wenn eine Quelle den Wert
+            wirklich kennt. Ein Balken auf 0 läse sich als „unbesetzter
+            Markt" – die Abwesenheit der Kachel ist ehrlicher. */}
+        {competition.saturationIndex !== undefined && (
+          <div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm text-muted">Sättigung</span>
+              <span className="text-sm font-medium tabular-nums text-text">
+                {formatNumber(competition.saturationIndex)} / 100
+              </span>
+            </div>
+            <BarMeter
+              value={competition.saturationIndex}
+              tone={toneForScore(100 - competition.saturationIndex)}
+              className="mt-2"
+            />
           </div>
-          <BarMeter
-            value={competition.saturationIndex}
-            tone={toneForScore(100 - competition.saturationIndex)}
-            className="mt-2"
-          />
-        </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Metric label="Listings" value={formatCompact(competition.listingCount)} />
-          <Metric label="Anbieter" value={formatCompact(competition.activeSellers)} />
+          <Metric
+            label="Anbieter"
+            value={
+              competition.activeSellers === undefined
+                ? "—"
+                : formatCompact(competition.activeSellers)
+            }
+          />
           <Metric label="Top-10-Anteil" value={formatScore(competition.top10SharePct)} />
           <Metric
             label="Medianalter"
-            value={`${formatNumber(competition.medianListingAgeDays)} T.`}
+            value={
+              competition.medianListingAgeDays === undefined
+                ? "—"
+                : `${formatNumber(competition.medianListingAgeDays)} T.`
+            }
           />
         </div>
 
-        <p className="text-xs text-muted">
-          {formatNumber(competition.newListings30dPct, 1)} % der Listings sind in den letzten
-          30 Tagen hinzugekommen.
-        </p>
+        {competition.newListings30dPct !== undefined && (
+          <p className="text-xs text-muted">
+            {formatNumber(competition.newListings30dPct, 1)} % der Listings sind in den letzten
+            30 Tagen hinzugekommen.
+          </p>
+        )}
       </CardBody>
     </Card>
   );
@@ -199,7 +217,14 @@ export function PricingPanel({ signals }: { signals: MarketSignals }) {
         <div className="grid grid-cols-3 gap-4">
           <Metric label="Unteres Viertel" value={formatCurrency(pricing.p25, pricing.currency)} />
           <Metric label="Oberes Viertel" value={formatCurrency(pricing.p75, pricing.currency)} />
-          <Metric label="Ø Bewertungen" value={formatNumber(pricing.avgReviewsPerListing, 1)} />
+          <Metric
+            label="Ø Bewertungen"
+            value={
+              pricing.avgReviewsPerListing === undefined
+                ? "—"
+                : formatNumber(pricing.avgReviewsPerListing, 1)
+            }
+          />
         </div>
       </CardBody>
     </Card>

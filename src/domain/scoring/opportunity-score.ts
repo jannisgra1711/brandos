@@ -169,16 +169,25 @@ function scoreCompetition(signals: MarketSignals): FactorResult {
   const competition = signals.competition;
   if (!competition) return missing("Wettbewerb");
 
-  const saturation = normalizeInverse(competition.saturationIndex, 10, 95);
+  // Meldet die Quelle keinen Sättigungsindex, wird er aus der Zahl der
+  // Listings abgeleitet. Die Normierung gehört ohnehin hierher und nicht in
+  // den Provider: eine Suchergebnisliste kennt ihre Treffer, aber nicht das
+  // Verhältnis zur Nachfrage.
+  const derived = competition.saturationIndex === undefined;
+  const saturationIndex = competition.saturationIndex ?? normalizeLog(competition.listingCount, 200, 200_000);
+
+  const saturation = normalizeInverse(saturationIndex, 10, 95);
   // Hohe Konzentration bei den Top 10 bedeutet: der Markt ist verteilt.
   const concentration = normalizeInverse(competition.top10SharePct, 8, 60);
   const barrierPenalty = { low: 0, medium: 6, high: 14 }[competition.entryBarrier];
 
   const value = saturation * 0.65 + concentration * 0.35 - barrierPenalty;
 
+  const basis = derived ? " (aus der Listing-Zahl abgeleitet)" : "";
+
   return {
     value,
-    rationale: `Sättigung ${de(competition.saturationIndex)}/100 bei ${deCompact(competition.listingCount)} Listings, Top-10-Anteil ${deShare(competition.top10SharePct)}.`,
+    rationale: `Sättigung ${de(saturationIndex)}/100${basis} bei ${deCompact(competition.listingCount)} Listings, Top-10-Anteil ${deShare(competition.top10SharePct)}.`,
   };
 }
 
@@ -186,16 +195,24 @@ function scoreMarketAge(signals: MarketSignals): FactorResult {
   const competition = signals.competition;
   if (!competition) return missing("Marktalter");
 
+  // Alter und Zustrom stehen in keiner Suchergebnisliste. Ohne sie lässt
+  // sich über die Angreifbarkeit des Bestandsangebots nichts sagen –
+  // neutral bewerten ist ehrlicher als aus dem Rest zu raten.
+  const { medianListingAgeDays, newListings30dPct } = competition;
+  if (medianListingAgeDays === undefined || newListings30dPct === undefined) {
+    return missing("Marktalter");
+  }
+
   // Junges Bestandsangebot ist leichter angreifbar ...
-  const youth = normalizeInverse(competition.medianListingAgeDays, 90, 1460);
+  const youth = normalizeInverse(medianListingAgeDays, 90, 1460);
   // ... ein zu starker Zustrom neuer Anbieter deutet aber auf einen
   // überhitzten Markt hin, in dem die Marge schnell wegbricht.
-  const influx = competition.newListings30dPct;
-  const overheating = influx > 22 ? normalize(influx - 22, 0, 30) * 0.5 : 0;
+  const overheating =
+    newListings30dPct > 22 ? normalize(newListings30dPct - 22, 0, 30) * 0.5 : 0;
 
   return {
     value: youth - overheating,
-    rationale: `Medianalter der Listings ${de(competition.medianListingAgeDays)} Tage, ${deShare(influx, 1)} Neuzugänge in 30 Tagen.`,
+    rationale: `Medianalter der Listings ${de(medianListingAgeDays)} Tage, ${deShare(newListings30dPct, 1)} Neuzugänge in 30 Tagen.`,
   };
 }
 

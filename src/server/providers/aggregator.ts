@@ -247,15 +247,34 @@ function mergeCompetition(contributions: Contribution[]): MarketSignals["competi
   const blendField = (get: (v: (typeof entries)[number]["value"]) => number) =>
     blend(entries.map((e) => ({ value: get(e.value), weight: e.weight })));
 
+  /**
+   * Wie `blendField`, aber für Felder, die nicht jede Quelle kennt: gemischt
+   * wird nur über die Beiträge, die den Wert tatsächlich liefern. Kennt ihn
+   * keine, bleibt das Feld leer – ein Nullwert wäre eine Aussage, und zwar
+   * eine falsche.
+   */
+  const blendOptional = (
+    get: (v: (typeof entries)[number]["value"]) => number | undefined,
+    decimals: number,
+  ): number | undefined => {
+    const known = entries
+      .map((e) => ({ value: get(e.value), weight: e.weight }))
+      .filter((e): e is { value: number; weight: number } => e.value !== undefined);
+    if (known.length === 0) return undefined;
+    return round(blend(known), decimals);
+  };
+
   return {
     // Listing-Zahlen sind quellenspezifisch (Etsy != Amazon) – hier zählt der
     // Leitmarkt, nicht der Durchschnitt.
     listingCount: primary.value.listingCount,
-    activeSellers: primary.value.activeSellers,
-    saturationIndex: round(blendField((v) => v.saturationIndex), 1),
+    // Die erste Quelle, die es überhaupt weiß – gemischt wäre es sinnlos,
+    // weil sich Anbieterzahlen zwischen Marktplätzen nicht addieren.
+    activeSellers: entries.find((e) => e.value.activeSellers !== undefined)?.value.activeSellers,
+    saturationIndex: blendOptional((v) => v.saturationIndex, 1),
     top10SharePct: round(blendField((v) => v.top10SharePct), 1),
-    medianListingAgeDays: Math.round(blendField((v) => v.medianListingAgeDays)),
-    newListings30dPct: round(blendField((v) => v.newListings30dPct), 1),
+    medianListingAgeDays: blendOptional((v) => v.medianListingAgeDays, 0),
+    newListings30dPct: blendOptional((v) => v.newListings30dPct, 1),
     entryBarrier: primary.value.entryBarrier,
   };
 }
@@ -275,7 +294,15 @@ function mergePricing(contributions: Contribution[]): MarketSignals["pricing"] {
     median: blendField((v) => v.median),
     p75: blendField((v) => v.p75),
     max: blendField((v) => v.max),
-    avgReviewsPerListing: blendField((v) => v.avgReviewsPerListing),
+    // Nur über Quellen mischen, die Listing-Bewertungen tatsächlich kennen.
+    // Marktplätze, die stattdessen Verkäuferbewertungen ausweisen, lassen
+    // das Feld leer – ihre Größenordnung würde den Mittelwert zerlegen.
+    avgReviewsPerListing: (() => {
+      const known = entries
+        .map((e) => ({ value: e.value.avgReviewsPerListing, weight: e.weight }))
+        .filter((e): e is { value: number; weight: number } => e.value !== undefined);
+      return known.length === 0 ? undefined : round(blend(known), 1);
+    })(),
   };
 }
 

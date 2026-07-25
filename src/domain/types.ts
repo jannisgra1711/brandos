@@ -127,17 +127,35 @@ export interface SeasonalitySignal {
 
 export type EntryBarrier = "low" | "medium" | "high";
 
+/**
+ * Was eine Marktplatzsuche hergibt, ist weniger als das, was ein
+ * allwissender Datensatz hergäbe. Optional ist deshalb alles, was sich aus
+ * einer Ergebnisliste nicht messen lässt – etwa das Alter der Listings oder
+ * die Gesamtzahl der Anbieter jenseits der sichtbaren Seiten.
+ *
+ * Fehlende Felder sind kein Mangel der Quelle, sondern eine Lücke im Bild:
+ * Der Aggregator füllt sie aus anderen Quellen, wenn es welche gibt, und das
+ * Scoring behandelt sie sonst als Unsicherheit.
+ */
 export interface CompetitionSignal {
   listingCount: number;
-  activeSellers: number;
-  /** 0..100 – 100 bedeutet vollständig übersättigt. */
-  saturationIndex: number;
+  /** Nur messbar, wenn die Quelle über die sichtbaren Treffer hinaussieht. */
+  activeSellers?: number;
+  /**
+   * 0..100 – 100 bedeutet vollständig übersättigt.
+   *
+   * Optional, weil es kein Messwert ist, sondern eine Einordnung: Eine
+   * Suchergebnisliste kennt die Zahl ihrer Treffer, nicht deren Verhältnis
+   * zur Nachfrage. Fehlt der Wert, leitet ihn das Scoring aus `listingCount`
+   * ab – dort gehört die Normierung ohnehin hin.
+   */
+  saturationIndex?: number;
   /** Marktanteil der Top-10-Anbieter in Prozent. */
   top10SharePct: number;
   /** Medianalter der Listings in Tagen – junge Märkte sind angreifbar. */
-  medianListingAgeDays: number;
+  medianListingAgeDays?: number;
   /** Neue Listings der letzten 30 Tage in Prozent des Bestands. */
-  newListings30dPct: number;
+  newListings30dPct?: number;
   entryBarrier: EntryBarrier;
 }
 
@@ -148,8 +166,18 @@ export interface PricingSignal {
   median: number;
   p75: number;
   max: number;
-  /** Durchschnittliche Bewertungsanzahl je Listing – Proxy für Verkaufsdruck. */
-  avgReviewsPerListing: number;
+  /**
+   * Durchschnittliche Bewertungsanzahl je **Listing** – Proxy für
+   * Verkaufsdruck.
+   *
+   * Optional, und die Unterscheidung ist wichtig: Marktplätze weisen
+   * überwiegend die Lebenszeit-Bewertungen des *Verkäufers* aus, nicht die
+   * eines einzelnen Angebots. Das sind Größen unterschiedlicher
+   * Größenordnung – eine für die andere einzusetzen, ergibt Zahlen im
+   * Zehntausenderbereich, wo einstellige stehen müssten. Quellen, die nur
+   * Verkäuferwerte kennen, lassen das Feld leer.
+   */
+  avgReviewsPerListing?: number;
 }
 
 export interface AudienceSegment {
@@ -415,7 +443,8 @@ export interface DiscoveryOpportunity {
   evidence: string[];
   demandIndex: number;
   growth90d: number;
-  saturationIndex: number;
+  /** Fehlt, wenn keine Quelle die Angebotsdichte einordnen konnte. */
+  saturationIndex?: number;
   direction: TrendDirection;
   sparkline: number[];
   /** Fehlt, wenn keine Quelle Saisonsignale geliefert hat. */
