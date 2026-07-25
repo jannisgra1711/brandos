@@ -54,7 +54,11 @@ export function buildMarketBrief(
   if (signals.demand) {
     const d = signals.demand;
     push("## Nachfrage");
-    push(`Geschätzte Suchanfragen/Monat: ${Math.round(d.estimatedMonthlySearches)}`);
+    // Fehlt das Absolutvolumen, wird die Zeile weggelassen statt geschätzt –
+    // das Modell soll nicht über eine Zahl schreiben, die niemand gemessen hat.
+    if (d.estimatedMonthlySearches !== undefined) {
+      push(`Geschätzte Suchanfragen/Monat: ${Math.round(d.estimatedMonthlySearches)}`);
+    }
     push(`Nachfrageindex: ${d.volumeIndex}/100 | Richtung: ${d.direction}`);
     push(`Wachstum 90 Tage: ${pct(d.growth90d)} | Wachstum 12 Monate: ${pct(d.growth12m)}`);
     push(`Verlauf (letzte 12 Monate): ${d.series.slice(-12).map((p) => `${p.period}=${p.value}`).join(", ")}`);

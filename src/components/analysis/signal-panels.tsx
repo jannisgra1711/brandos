@@ -34,7 +34,16 @@ export function DemandPanel({ signals }: { signals: MarketSignals }) {
       />
       <CardBody className="space-y-4 pt-4">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Metric label="Suchen / Monat" value={formatCompact(demand.estimatedMonthlySearches)} />
+          {/* Fehlt das Absolutvolumen, bleibt die Kachel stehen und zeigt die
+              Lücke, statt sie stillschweigend verschwinden zu lassen. */}
+          <Metric
+            label="Suchen / Monat"
+            value={
+              demand.estimatedMonthlySearches === undefined
+                ? "—"
+                : formatCompact(demand.estimatedMonthlySearches)
+            }
+          />
           <Metric label="Index" value={`${Math.round(demand.volumeIndex)} / 100`} />
           <Metric
             label="90 Tage"

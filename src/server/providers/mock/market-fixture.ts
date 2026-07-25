@@ -136,13 +136,21 @@ function buildSeasonality(profile: NicheProfile | undefined, rng: Rng): Seasonal
 
 // --- Nachfrage -------------------------------------------------------------
 
+/**
+ * Im synthetischen Markt ist das Absolutvolumen immer bekannt – es ist ja
+ * erfunden. Echte Quellen wie Google Trends kennen es nicht, deshalb ist das
+ * Feld im Domänentyp optional. Diese Verschärfung hält die Invariante des
+ * Fixtures fest, ohne sie mit einer Nicht-null-Assertion zu behaupten.
+ */
+type MockDemand = DemandSignal & { estimatedMonthlySearches: number };
+
 function buildDemand(
   profile: NicheProfile | undefined,
   seasonality: SeasonalitySignal,
   windowMonths: number,
   now: Date,
   rng: Rng,
-): DemandSignal {
+): MockDemand {
   // Log-uniforme Basis: die meisten Nischen sind klein, wenige sehr groß.
   const magnitude = rng.range(2.9, profile ? 5.3 : 4.9);
   const base = 10 ** magnitude;
@@ -203,7 +211,7 @@ function deriveDirection(
 
 function buildCompetition(
   profile: NicheProfile | undefined,
-  demand: DemandSignal,
+  demand: MockDemand,
   rng: Rng,
 ): CompetitionSignal {
   const baseSaturation = profile?.baseSaturation ?? rng.range(45, 75);

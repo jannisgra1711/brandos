@@ -172,7 +172,9 @@ async function scanSeed(seed: DiscoverySeed, now: Date): Promise<DiscoveryOpport
     confidence: score.confidence,
     reason: buildReason(seed, demand.growth90d, competition?.saturationIndex),
     evidence: [
-      `Nachfrageindex ${demand.volumeIndex}/100 bei ${deCompact(demand.estimatedMonthlySearches)} Suchen/Monat`,
+      demand.estimatedMonthlySearches === undefined
+        ? `Nachfrageindex ${demand.volumeIndex}/100`
+        : `Nachfrageindex ${demand.volumeIndex}/100 bei ${deCompact(demand.estimatedMonthlySearches)} Suchen/Monat`,
       `Entwicklung ${dePercent(demand.growth90d)} in 90 Tagen`,
       competition
         ? `Sättigung ${de(competition.saturationIndex)}/100 bei ${deCompact(competition.listingCount)} Listings`

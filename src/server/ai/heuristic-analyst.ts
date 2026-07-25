@@ -48,8 +48,12 @@ function buildSummary(signals: MarketSignals, score: OpportunityScore): string {
     const d = signals.demand;
     // Beide Horizonte nennen: eine Richtungsangabe ohne die Zahlen, auf denen
     // sie beruht, wirkt bei gegenläufigen Zeiträumen wie ein Widerspruch.
+    const volume =
+      d.estimatedMonthlySearches === undefined
+        ? `liegt bei einem Nachfrageindex von ${de(d.volumeIndex)}/100`
+        : `bewegt rund ${deCompact(d.estimatedMonthlySearches)} Suchanfragen pro Monat`;
     parts.push(
-      `Der Markt "${term}" bewegt rund ${deCompact(d.estimatedMonthlySearches)} Suchanfragen pro Monat und entwickelt sich insgesamt ${describeDirection(d.direction)} (${dePercent(d.growth90d)} in 90 Tagen, ${dePercent(d.growth12m)} im Jahresvergleich).`,
+      `Der Markt "${term}" ${volume} und entwickelt sich insgesamt ${describeDirection(d.direction)} (${dePercent(d.growth90d)} in 90 Tagen, ${dePercent(d.growth12m)} im Jahresvergleich).`,
     );
   } else {
     parts.push(`Für "${term}" liegen keine belastbaren Nachfragedaten vor.`);

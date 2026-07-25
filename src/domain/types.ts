@@ -97,8 +97,17 @@ export type TrendDirection = "rising" | "stable" | "declining" | "volatile";
 export interface DemandSignal {
   /** Normalisierter Nachfrageindex 0..100 (100 = Top-Perzentil im Datensatz). */
   volumeIndex: number;
-  /** Geschätztes monatliches Suchvolumen über alle Quellen. */
-  estimatedMonthlySearches: number;
+  /**
+   * Geschätztes monatliches Suchvolumen über alle Quellen.
+   *
+   * Optional, weil die wichtigste Nachfragequelle es nicht liefern kann:
+   * Google Trends misst ausschließlich *relative* Nachfrage (Index 0..100),
+   * absolute Volumina stammen aus Keyword-Werkzeugen. Fehlt der Wert, stützt
+   * sich der Nachfrage-Faktor allein auf `volumeIndex` – das ist die Größe,
+   * die tatsächlich gemessen wurde. Eine Hochrechnung wäre eine erfundene
+   * Zahl, die in der Oberfläche wie eine gemessene aussähe.
+   */
+  estimatedMonthlySearches?: number;
   growth90d: number;
   growth12m: number;
   direction: TrendDirection;

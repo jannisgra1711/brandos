@@ -1,6 +1,7 @@
 import "server-only";
 import type { Capability, SourceId } from "@/domain/types";
 import { logger } from "@/server/logging/logger";
+import { googleTrendsProvider } from "./live/google-trends";
 import { amazonMockProvider } from "./mock/amazon-mock";
 import { etsyMockProvider } from "./mock/etsy-mock";
 import { googleTrendsMockProvider } from "./mock/google-trends-mock";
@@ -29,6 +30,7 @@ export function registerProvider(provider: DataProvider): void {
 // Mock-Provider bilden die Grundausstattung. Live-Provider werden hier
 // zusätzlich registriert, sobald sie implementiert sind.
 [
+  googleTrendsProvider,
   googleTrendsMockProvider,
   etsyMockProvider,
   redditMockProvider,

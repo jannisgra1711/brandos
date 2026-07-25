@@ -127,6 +127,17 @@ function scoreDemand(signals: MarketSignals): FactorResult {
 
   // Zwei Perspektiven: relative Position im Markt und absolutes Volumen.
   const relative = clamp(demand.volumeIndex);
+
+  // Ohne Absolutvolumen bleibt der relative Index die einzige gemessene
+  // Größe – dann trägt er den Faktor allein. Der Faktor gilt trotzdem nicht
+  // als geschätzt: er beruht auf echten Daten, nur auf weniger davon.
+  if (demand.estimatedMonthlySearches === undefined) {
+    return {
+      value: relative,
+      rationale: `Nachfrageindex ${de(relative)}/100; kein absolutes Suchvolumen verfügbar.`,
+    };
+  }
+
   const absolute = normalizeLog(demand.estimatedMonthlySearches, 500, 400_000);
   const value = relative * 0.55 + absolute * 0.45;
 
