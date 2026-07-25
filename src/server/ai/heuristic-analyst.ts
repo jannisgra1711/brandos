@@ -253,7 +253,12 @@ function buildInsights(signals: MarketSignals): Insight[] {
       evidence: [
         `Peak-Monate: ${signals.seasonality.peakMonths.join(", ")}`,
         `Saisonamplitude: ${de(signals.seasonality.amplitude * 100)} %`,
-        `Treiber: ${signals.seasonality.drivers.join(", ")}`,
+        // Nicht jede Quelle kennt den Anlass hinter dem Peak – Google Trends
+        // etwa misst nur, dass ein Monat heraussticht. Eine Zeile "Treiber:"
+        // ohne Inhalt sähe nach einem Darstellungsfehler aus.
+        ...(signals.seasonality.drivers.length > 0
+          ? [`Treiber: ${signals.seasonality.drivers.join(", ")}`]
+          : []),
       ],
     });
   }
@@ -327,6 +332,14 @@ function buildActions(signals: MarketSignals, score: OpportunityScore): string[]
 
   if (score.value < 45) {
     actions.push("Alternativen Markt prüfen – die Kennzahlen rechtfertigen keinen Einstieg.");
+  }
+
+  // Jede Maßnahme oben hängt an einem Signal. Liegt keines davon vor – etwa
+  // ohne Keywords, Saisonalität und Produktarten –, bleibt die Liste leer.
+  // Dann sagt sie das, statt als leerer Abschnitt in der Oberfläche zu
+  // stehen. Dieselbe Behandlung wie bei Treibern und Bremsen.
+  if (actions.length === 0) {
+    return ["Aus den vorliegenden Signalen ergibt sich keine spezifische Maßnahme."];
   }
 
   return actions.slice(0, 6);
