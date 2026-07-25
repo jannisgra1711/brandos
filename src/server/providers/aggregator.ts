@@ -46,6 +46,12 @@ export interface CollectOptions {
   capabilities?: Capability[];
   /** Externes Abbruchsignal (z. B. Request-Abbruch durch den Client). */
   signal?: AbortSignal;
+  /**
+   * Überschreibt die Provider-Auswahl. Ausschließlich für Tests gedacht –
+   * die Anwendung fragt immer die Registry, damit es genau einen Ort gibt,
+   * an dem Quellen bekannt sind.
+   */
+  providers?: DataProvider[];
 }
 
 export async function collectSignals(
@@ -56,7 +62,7 @@ export async function collectSignals(
   const now = options.now ?? new Date();
   const timeoutMs = options.timeoutMs ?? getConfig().providers.timeoutMs;
 
-  const providers = resolveProviders().filter(
+  const providers = (options.providers ?? resolveProviders()).filter(
     (p) =>
       !options.capabilities ||
       options.capabilities.some((capability) => p.capabilities.includes(capability)),

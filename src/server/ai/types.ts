@@ -29,13 +29,16 @@ export interface Analyst {
   interpret(input: InterpretationInput): Promise<MarketInterpretation>;
 }
 
+// Siehe ProviderError: keine Parameter-Properties, damit die Klasse auch im
+// Type-Stripping-Modus von Node ladbar bleibt.
 export class AnalystError extends Error {
-  constructor(
-    readonly analyst: string,
-    message: string,
-    override readonly cause?: unknown,
-  ) {
+  readonly analyst: string;
+  override readonly cause?: unknown;
+
+  constructor(analyst: string, message: string, cause?: unknown) {
     super(message);
     this.name = "AnalystError";
+    this.analyst = analyst;
+    this.cause = cause;
   }
 }

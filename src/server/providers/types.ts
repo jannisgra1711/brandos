@@ -86,13 +86,17 @@ export interface DataProvider {
   discover?(context: ProviderContext): Promise<DiscoverySeed[]>;
 }
 
+// Felder bewusst ausgeschrieben statt als Parameter-Properties: Letztere
+// erzeugen Laufzeitcode und sind daher in Nodes Type-Stripping-Modus – und
+// damit im Testlauf – nicht verwendbar.
 export class ProviderError extends Error {
-  constructor(
-    readonly source: SourceId,
-    message: string,
-    override readonly cause?: unknown,
-  ) {
+  readonly source: SourceId;
+  override readonly cause?: unknown;
+
+  constructor(source: SourceId, message: string, cause?: unknown) {
     super(message);
     this.name = "ProviderError";
+    this.source = source;
+    this.cause = cause;
   }
 }
