@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AnalysisSummary, MarketAnalysis } from "@/domain/types";
 import { getConfig } from "@/server/config/env";
@@ -53,6 +53,14 @@ export class JsonAnalysisRepository implements AnalysisRepository {
   }
 
   async save(analysis: MarketAnalysis): Promise<void> {
+    // Die Schreibseite braucht dieselbe Prüfung wie die Leseseite, und zwar
+    // dringender: ein manipulierter Pfad liest hier nicht fremde Daten,
+    // sondern überschreibt sie. Ein Fehlschlag ist lauter als ein
+    // stillschweigend verworfener Speichervorgang – der verlöre die Analyse.
+    if (!isSafeId(analysis.id)) {
+      throw new Error(`Unzulässige Analyse-ID: ${JSON.stringify(analysis.id)}`);
+    }
+
     await this.enqueue(async () => {
       await mkdir(this.analysesDir, { recursive: true });
       await writeFile(this.filePath(analysis.id), JSON.stringify(analysis, null, 2), "utf8");
@@ -183,13 +191,14 @@ export class JsonAnalysisRepository implements AnalysisRepository {
 
   private async writeIndex(index: IndexFile): Promise<void> {
     await mkdir(this.root, { recursive: true });
-    // Atomar schreiben: ein Absturz mitten im Schreibvorgang darf den Index
-    // nicht in einem halb geschriebenen Zustand hinterlassen.
+
+    // Atomar schreiben: erst vollständig daneben, dann in einem Zug an die
+    // richtige Stelle. `rename` ersetzt die Zieldatei ohne Zwischenzustand –
+    // ein Absturz hinterlässt entweder den alten oder den neuen Index, nie
+    // einen halben und nie gar keinen.
     const tmp = `${this.indexPath}.tmp`;
     await writeFile(tmp, JSON.stringify(index, null, 2), "utf8");
-    await rm(this.indexPath, { force: true });
-    await writeFile(this.indexPath, JSON.stringify(index, null, 2), "utf8");
-    await rm(tmp, { force: true });
+    await rename(tmp, this.indexPath);
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
