@@ -28,6 +28,27 @@ import { CachedFailure, ProviderResponseCache } from "../util/response-cache";
  *   ist, blieben nur erfundene Zahlen – deshalb keine `keywords`-Fähigkeit.
  *
  * Kontingent: genau ein SerpAPI-Aufruf je Analyse.
+ *
+ * ---
+ *
+ * **Keine `discovery`-Fähigkeit – zwei Wege wurden geprüft und verworfen:**
+ *
+ * Die Engine `google_trends_trending_now` ist nachrichtengetrieben. Ihre
+ * Kategorien sind Sport, Games, Technik, Unterhaltung, Recht und Politik –
+ * keine einzige für Konsum, Haus oder Hobby.
+ *
+ * Steigende verwandte Suchanfragen (`RELATED_QUERIES`, Liste `rising`) zu
+ * breiten Ankerbegriffen wurden implementiert und gegen die echte API
+ * gemessen: von acht Kandidaten war *einer* ein Markt („Geschenk zum
+ * Vatertag"). Der Rest waren Markennamen („Froplay Hund"), Personen („Hund
+ * Jette"), Buchtitel („Das Geschenk des Meeres"), Nachrichten („ADAC 122
+ * Jahre Geschenk", „Meteorit") und Floskeln („Das perfekte Geschenk").
+ *
+ * Das ist kein Filterproblem: Die Liste bildet *Aufmerksamkeit* ab, nicht
+ * Kaufabsicht. Kein Textfilter unterscheidet „Froplay Hund" von
+ * „Adventskalender Hund". Wer es erneut versucht, braucht eine Quelle mit
+ * kommerziellem Signal – Marktplatz-Suchvorschläge etwa, nicht Google
+ * Trends.
  */
 
 const ENDPOINT = "https://serpapi.com/search.json";
