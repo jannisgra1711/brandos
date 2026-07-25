@@ -22,12 +22,32 @@ import { AnalystError, type Analyst, type InterpretationInput } from "./types";
  *   woraufhin der Fallback-Analyst übernimmt.
  */
 
-const MAX_TOKENS = 16_000;
+/**
+ * Grosszügig bemessen, und das ist kein Luxus: `max_tokens` deckelt bei
+ * Claude Opus 5 **Denkschritte und Antworttext gemeinsam**. Das Modell denkt
+ * dort standardmässig, anders als bei Opus 4.8. Eine vollständige
+ * Interpretation mit Erkenntnissen, Risiken und vier Produktideen ist bereits
+ * mehrere tausend Token gross – mit einem knappen Limit bricht die Antwort
+ * mitten im JSON ab, was hier als `max_tokens` ankommt und die Heuristik
+ * übernehmen lässt. Der Abbruch sähe aus wie ein Modellfehler, wäre aber nur
+ * ein zu kleines Budget.
+ *
+ * Bei dieser Grösse ist Streaming Pflicht – ein nicht gestreamter Request
+ * läuft in HTTP-Timeouts.
+ */
+const MAX_TOKENS = 64_000;
 
 let client: Anthropic | undefined;
+let clientKey: string | undefined;
 
 function getClient(apiKey: string): Anthropic {
-  client ??= new Anthropic({ apiKey, maxRetries: 2 });
+  // Beim Schlüsselwechsel neu erzeugen: ein zwischengespeicherter Client hielte
+  // sonst den alten Schlüssel fest, obwohl die Konfiguration längst eine andere
+  // meldet – in Tests und nach `resetConfig()` genau die falsche Verbindung.
+  if (!client || clientKey !== apiKey) {
+    client = new Anthropic({ apiKey, maxRetries: 2 });
+    clientKey = apiKey;
+  }
   return client;
 }
 
@@ -56,6 +76,11 @@ export const anthropicAnalyst: Analyst = {
         model: ai.model,
         max_tokens: MAX_TOKENS,
         system: SYSTEM_PROMPT,
+        // Ausdrücklich gesetzt statt auf den Standard zu vertrauen: Ob ein
+        // weggelassenes Feld Denken bedeutet, hängt vom Modell ab – bei Opus 5
+        // ja, bei Opus 4.8 nein. Ein Wechsel über BRANDOS_AI_MODEL würde das
+        // Verhalten sonst stillschweigend ändern.
+        thinking: { type: "adaptive" },
         output_config: {
           format: {
             type: "json_schema",
