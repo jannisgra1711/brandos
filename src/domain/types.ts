@@ -369,6 +369,29 @@ export type OpportunityKind =
   | "evergreen"
   | "unconventional";
 
+/**
+ * Saisonlage eines Kandidaten.
+ *
+ * `monthsToPeak` beantwortet die eigentliche Handlungsfrage – "wann muss ich
+ * fertig sein?" – und ist deshalb Teil des Discovery-Ergebnisses, nicht erst
+ * der Detailanalyse.
+ */
+export interface SeasonalWindow {
+  peakMonths: number[];
+  /** Monate bis zum nächsten Peak (0 = Peak läuft gerade). */
+  monthsToPeak: number;
+  /**
+   * Der Peak-Monat, auf den sich `monthsToPeak` bezieht (1..12).
+   *
+   * Bei mehreren Peaks ist das nicht zwingend der erste Eintrag in
+   * `peakMonths` – deshalb wird er hier aufgelöst, statt ihn in der
+   * Darstellung erneut herzuleiten.
+   */
+  nextPeakMonth: number;
+  /** 0..1 – unter 0.15 gilt der Markt als ganzjährig. */
+  amplitude: number;
+}
+
 export interface DiscoveryOpportunity {
   id: string;
   term: string;
@@ -386,6 +409,8 @@ export interface DiscoveryOpportunity {
   saturationIndex: number;
   direction: TrendDirection;
   sparkline: number[];
+  /** Fehlt, wenn keine Quelle Saisonsignale geliefert hat. */
+  seasonality?: SeasonalWindow;
 }
 
 export interface TrendMover {

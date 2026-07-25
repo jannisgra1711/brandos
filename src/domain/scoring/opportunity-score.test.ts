@@ -138,7 +138,40 @@ describe("monthsUntilNextPeak", () => {
     assert.equal(monthsUntilNextPeak(1, [11, 12]), 10);
   });
 
+  it("wählt bei mehreren Peaks den nächstgelegenen, nicht den ersten", () => {
+    // Von Juli aus ist September (2 Monate) näher als Januar (6 Monate).
+    assert.equal(monthsUntilNextPeak(7, [1, 9]), 2);
+    assert.equal(monthsUntilNextPeak(7, [5, 11]), 4);
+  });
+
   it("liefert einen neutralen Abstand, wenn kein Peak bekannt ist", () => {
     assert.equal(monthsUntilNextPeak(5, []), 6);
+  });
+});
+
+describe("Auflösung des nächsten Peak-Monats", () => {
+  // Spiegelt die Berechnung in discovery-service.scanSeed: Aus Abstand und
+  // aktuellem Monat muss derselbe Peak herauskommen, der den Abstand erzeugt
+  // hat. Bei mehreren Peaks ist das nicht peakMonths[0] – genau dort entstand
+  // vorher eine falsche Anzeige ("Peak in 2 Monaten (Januar)" im Juli).
+  const nextPeakMonth = (currentMonth: number, peakMonths: number[]) =>
+    ((currentMonth - 1 + monthsUntilNextPeak(currentMonth, peakMonths)) % 12) + 1;
+
+  it("zeigt auf einen tatsächlichen Peak-Monat", () => {
+    for (const currentMonth of [1, 4, 7, 10, 12]) {
+      for (const peaks of [[1, 9], [5, 11], [3], [11, 12], [6, 7]]) {
+        const resolved = nextPeakMonth(currentMonth, peaks);
+        assert.ok(
+          peaks.includes(resolved),
+          `Monat ${currentMonth} mit Peaks ${peaks} ergab ${resolved} – kein Peak-Monat`,
+        );
+      }
+    }
+  });
+
+  it("löst über den Jahreswechsel korrekt auf", () => {
+    assert.equal(nextPeakMonth(11, [1]), 1);
+    assert.equal(nextPeakMonth(7, [1, 9]), 9);
+    assert.equal(nextPeakMonth(7, [6, 7]), 7);
   });
 });

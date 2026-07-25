@@ -25,8 +25,6 @@ export async function buildDashboard(options: { now?: Date } = {}): Promise<Dash
     repository.count(),
   ]);
 
-  const currentMonth = now.getMonth() + 1;
-
   return {
     generatedAt: now.toISOString(),
     stats: {
@@ -37,7 +35,7 @@ export async function buildDashboard(options: { now?: Date } = {}): Promise<Dash
     },
     topOpportunities: opportunities.slice(0, 6),
     risingTrends: movers.rising,
-    seasonalWindows: selectSeasonalWindows(opportunities, currentMonth),
+    seasonalWindows: selectSeasonalWindows(opportunities),
     saturatedMarkets: movers.saturated,
     recentAnalyses,
     savedAnalyses,
@@ -48,15 +46,30 @@ export async function buildDashboard(options: { now?: Date } = {}): Promise<Dash
 /**
  * Saisonale Fenster: Kandidaten, deren Anlass in Reichweite liegt.
  *
- * Ohne echte Saisondaten je Kandidat wird die Einstufung des Providers
- * ("seasonal") genutzt und nach Score gereiht. Sobald der Scan auch
- * Saisonsignale mitliefert, ersetzt der reale Peak-Abstand diese Näherung.
+ * Maßgeblich ist der reale Abstand zum nächsten Peak, nicht die Einstufung
+ * der Quelle. Das ideale Fenster liegt zwei bis vier Monate davor – genug Zeit
+ * für Produktion, Listing-Reifung und organisches Ranking.
+ *
+ * Märkte ohne ausgeprägte Saison (Amplitude unter 15 %) gehören nicht hierher:
+ * Bei ihnen gibt es kein Zeitfenster, das man verpassen könnte.
  */
-function selectSeasonalWindows(
-  opportunities: DiscoveryOpportunity[],
-  _currentMonth: number,
-): DiscoveryOpportunity[] {
-  const seasonal = opportunities.filter((o) => o.kind === "seasonal");
-  const pool = seasonal.length >= 3 ? seasonal : opportunities.filter((o) => o.kind !== "evergreen");
-  return pool.slice(0, 4);
+const IDEAL_LEAD_MONTHS = { min: 1, max: 5 } as const;
+const MIN_AMPLITUDE = 0.15;
+
+function selectSeasonalWindows(opportunities: DiscoveryOpportunity[]): DiscoveryOpportunity[] {
+  return opportunities
+    .filter((o) => {
+      const season = o.seasonality;
+      if (!season || season.amplitude < MIN_AMPLITUDE) return false;
+      return (
+        season.monthsToPeak >= IDEAL_LEAD_MONTHS.min && season.monthsToPeak <= IDEAL_LEAD_MONTHS.max
+      );
+    })
+    // Der dringlichere Anlass zuerst; bei gleichem Abstand der bessere Score.
+    .sort(
+      (a, b) =>
+        (a.seasonality?.monthsToPeak ?? 99) - (b.seasonality?.monthsToPeak ?? 99) ||
+        b.score - a.score,
+    )
+    .slice(0, 4);
 }

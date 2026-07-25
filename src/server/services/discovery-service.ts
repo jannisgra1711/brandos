@@ -1,6 +1,6 @@
 import "server-only";
 import { de, deCompact, dePercent, deShare } from "@/domain/format";
-import { scoreOpportunity, toGrade } from "@/domain/scoring";
+import { monthsUntilNextPeak, scoreOpportunity, toGrade } from "@/domain/scoring";
 import type { DiscoveryOpportunity, MarketQuery, OpportunityKind, TrendMover } from "@/domain/types";
 import { logger } from "@/server/logging/logger";
 import { collectSignals } from "@/server/providers/aggregator";
@@ -145,6 +145,23 @@ async function scanSeed(seed: DiscoverySeed, now: Date): Promise<DiscoveryOpport
 
   const score = scoreOpportunity(signals, { now });
 
+  // Die Trendquelle liefert Saisonsignale bereits mit – sie wurden bisher nur
+  // nicht bis ins Discovery-Ergebnis durchgereicht.
+  const currentMonth = now.getMonth() + 1;
+  const seasonality = signals.seasonality
+    ? (() => {
+        const monthsToPeak = monthsUntilNextPeak(currentMonth, signals.seasonality.peakMonths);
+        return {
+          peakMonths: signals.seasonality.peakMonths,
+          monthsToPeak,
+          // Der Peak, auf den der Abstand zeigt – bei mehreren Peaks nicht
+          // zwangsläufig der erste in der Liste.
+          nextPeakMonth: ((currentMonth - 1 + monthsToPeak) % 12) + 1,
+          amplitude: signals.seasonality.amplitude,
+        };
+      })()
+    : undefined;
+
   return {
     id: slugify(seed.term),
     term: seed.term,
@@ -166,6 +183,7 @@ async function scanSeed(seed: DiscoverySeed, now: Date): Promise<DiscoveryOpport
     saturationIndex: competition?.saturationIndex ?? 50,
     direction: demand.direction,
     sparkline: demand.series.slice(-12).map((p) => p.value),
+    seasonality,
   };
 }
 

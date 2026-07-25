@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, CalendarClock } from "lucide-react";
 import type { DiscoveryOpportunity } from "@/domain/types";
 import { Sparkline } from "@/components/charts/sparkline";
 import { Badge, GradeBadge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { formatPercent, formatScore } from "@/lib/format";
+import { formatPercent, formatScore, monthName } from "@/lib/format";
 
 const KIND_LABEL: Record<DiscoveryOpportunity["kind"], string> = {
   niche: "Nische",
@@ -29,6 +29,13 @@ export function OpportunityCard({ opportunity }: { opportunity: DiscoveryOpportu
       : opportunity.direction === "declining"
         ? "negative"
         : "accent";
+
+  // Nur bei ausgeprägter Saison anzeigen – bei flacher Kurve gibt es kein
+  // Zeitfenster, das man verpassen könnte.
+  const season =
+    opportunity.seasonality && opportunity.seasonality.amplitude >= 0.15
+      ? opportunity.seasonality
+      : undefined;
 
   return (
     <Card interactive className="group relative flex flex-col overflow-hidden">
@@ -66,11 +73,26 @@ export function OpportunityCard({ opportunity }: { opportunity: DiscoveryOpportu
         <Metric label="Sättigung" value={formatScore(opportunity.saturationIndex)} />
       </dl>
 
-      <div className="flex items-center justify-between gap-2 bg-surface px-5 py-3">
+      <div className="flex flex-wrap items-center gap-2 bg-surface px-5 py-3">
         <Badge tone="neutral">Konfidenz {formatScore(opportunity.confidence * 100)}</Badge>
+        {season ? (
+          <Badge tone={season.monthsToPeak <= 2 ? "warning" : "accent"}>
+            <CalendarClock size={12} strokeWidth={2.2} />
+            {describePeak(season.monthsToPeak, season.nextPeakMonth)}
+          </Badge>
+        ) : null}
       </div>
     </Card>
   );
+}
+
+/** "Peak in 3 Monaten (November)" – die Handlungsfrage, nicht die Rohzahl. */
+function describePeak(monthsToPeak: number, nextPeakMonth: number): string {
+  const peak = monthName(nextPeakMonth);
+
+  if (monthsToPeak === 0) return `Peak läuft (${peak})`;
+  if (monthsToPeak === 1) return `Peak in 1 Monat (${peak})`;
+  return `Peak in ${monthsToPeak} Monaten (${peak})`;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
