@@ -1,204 +1,259 @@
-# Handoff: BrandOS — Research- & Decision-Intelligence-Plattform
+# Handoff: BrandOS — von synthetisch zu echt
 
-**Generated**: 2026-07-25
-**Branch**: `main`, Working Tree sauber, kein Remote
-(bewusst ohne Commit-Hash — der veraltet, sobald dieses Dokument selbst committet wird;
-`git log --oneline` ist die verlässliche Quelle)
-**Status**: Ready for Review — lauffähig, gebaut, getestet. Live-Datenquellen noch nicht implementiert.
+**Generated**: 2026-07-26
+**Branch**: `main`, Working Tree sauber, synchron mit `origin/main` (`b934d52`)
+**Remote**: https://github.com/jannisgra1711/brandos — **öffentlich**
+**Status**: Ready for Review — lauffähig, gebaut, 169 Tests grün. Zwei echte Datenquellen live.
 
 ## Goal
 
-Eine KI-gestützte Research-Plattform für E-Commerce, die Marktsignale aus mehreren Quellen
-sammelt, mit einem nachvollziehbaren Opportunity Score bewertet, interpretiert und daraus
-Produktideen ableitet. Der Nutzer gab eine Produktvision vor (kein Sprint-Plan) und erwartete
-eigenständige Ableitung der Implementierungsreihenfolge. Oberfläche und Inhalte auf Deutsch.
+Eine KI-gestützte Research-Plattform für E-Commerce, die Marktsignale sammelt, mit
+einem nachvollziehbaren Opportunity Score bewertet, interpretiert und daraus
+Produktideen ableitet. Oberfläche und Inhalte auf Deutsch. **Privates
+Einzelplatz-Werkzeug**, kein gehosteter Dienst — das ist für die API-Anträge
+relevant (siehe *Setup Required*).
+
+Die vorige Sitzung baute das Produkt auf synthetischen Daten. Diese Sitzung hat
+die ersten echten Quellen angebunden.
 
 ## Completed
 
-- [x] Projekt-Scaffold von Hand (Next.js 16 App Router, React 19, TypeScript, Tailwind 4)
-- [x] Domain-Schicht: `types.ts`, `math.ts`, `format.ts`, Scoring-Engine, Ideengenerator
-- [x] Provider-Vertrag + Registry (Live bevorzugt, sonst Mock) + Aggregator mit Konfliktauflösung
-- [x] 6 Mock-Provider (Etsy, Google Trends, Pinterest, Reddit, Amazon, TikTok) über gemeinsames Markt-Fixture
-- [x] Nischen-Lexikon (16 Profile) + Discovery-Kandidatenpool (~40 Begriffe)
-- [x] AI-Schicht: `Analyst`-Vertrag, `anthropicAnalyst` (Structured Outputs + Streaming), `heuristicAnalyst`, Fallback-Wrapper
-- [x] Persistenz: `AnalysisRepository` + JSON-Implementierung mit Index und serialisierter Schreibkette
-- [x] Services: Research, Discovery (TTL-Cache), Dashboard, Historie
-- [x] API: `/api/research`, `/api/analyses`, `/api/analyses/[id]`, `/api/health`
-- [x] UI: Design-Tokens (Light/Dark), UI-Primitiven, eigene SVG-Charts, 5 Seiten
-- [x] 42 Tests (Node-Testrunner): Scoring, Math, Ideengenerator, Aggregator — grün
-- [x] README mit Architektur, Score-Tabelle, API und Entscheidungsbegründungen
-- [x] End-to-End im Browser verifiziert (Dashboard, Discovery, Recherche, Analyse-Detail)
-- [x] Git-Repository initialisiert, `.gitattributes` (LF-Normalisierung), Initial Commit auf `main`
-- [x] Saisonale Fenster aus echtem Peak-Abstand (ersetzt die frühere Näherung), Peak-Badge auf der Chancen-Karte
-- [x] Aggregator mit 15 Tests abgesichert — Teilausfälle, Konfliktauflösung, Datenqualität, Fähigkeitsfilter
+### Diese Sitzung
+
+- [x] **Repository veröffentlicht** — GitHub, öffentlich, mit englischem
+      Projektabschnitt im README als Homepage für den Etsy-Antrag
+- [x] **Google Trends live** (SerpAPI) — `demand` + `seasonality`, ein Abruf je
+      Analyse über fünf Jahre
+- [x] **eBay live** (SerpAPI) — `competition` + `pricing`, echte Preisverteilung
+      aus bis zu 200 Listings
+- [x] **Antwort-Cache + Nebenläufigkeitsgrenze** — dreischichtig (laufende Abrufe
+      / Speicher / Platte), überlebt Serverneustart
+- [x] **Sechs Signalfelder optional gemacht** — was nicht gemessen wurde, bleibt
+      leer statt geschätzt (siehe *Key Decisions*)
+- [x] **Heuristik als dokumentierte Voreinstellung** + vier verknüpfte
+      Erkenntnisregeln (zwei Signale je Regel)
+- [x] **Testabdeckung von 42 auf 169** — Provider, Cache, Limiter, Aggregator,
+      Heuristik-Analyst, Repository, TtlCache
+- [x] **Neun echte Defekte gefunden und behoben** (siehe *Failed Approaches* und
+      unten)
+
+### Aus der vorigen Sitzung
+
+- [x] Scaffold, Domain-Schicht, Scoring-Engine, Ideengenerator
+- [x] Provider-Vertrag, Registry, Aggregator mit Konfliktauflösung
+- [x] 6 Mock-Provider über gemeinsames Markt-Fixture
+- [x] AI-Schicht (`Analyst`-Vertrag, Anthropic + Heuristik, Fallback)
+- [x] Persistenz, Services, API, UI mit eigenen SVG-Charts
 
 ## Not Yet Done
 
-- [ ] **Erster echter Provider.** Empfehlung: Google Trends via SerpAPI (`SERPAPI_KEY` ist in `.env.example` vorbereitet). Er ist die Leitquelle für `demand`/`seasonality` und hat mit `priority: 20` bereits das höchste Gewicht.
-- [ ] **AI-Pfad gegen ein echtes Modell testen.** `anthropicAnalyst` ist vollständig implementiert, aber nie mit gesetztem `ANTHROPIC_API_KEY` gelaufen — der Heuristik-Fallback greift derzeit immer.
-- [ ] Discovery-Kandidaten aus echten Trendsignalen statt aus `discovery-seeds.ts` speisen
-- [ ] `DELETE /api/analyses/:id` hat keine UI-Anbindung (nur API)
-- [ ] Repository ungetestet (Index-Konsistenz, `saved`-Erhalt beim Überschreiben, Pfad-Traversal)
-- [ ] Heuristik-Analyst ungetestet (Insight-Auswahl, Trendkonsistenz)
-- [ ] Provider-Capabilities `ebay` und `youtube` sind in `SOURCE_IDS` deklariert, aber ohne Implementierung
+- [ ] **Etsy** — Antrag ist gestellt, wartet auf Freigabe. **Größter verbleibender
+      Hebel**: liefert `audience`, `design`, `products` und stellt damit fünf der
+      sieben Differenzierungsbedingungen im Ideengenerator auf gemessene Werte.
+- [ ] **Discovery-Service ungetestet** — letzter Dienst ohne Tests. Steuert den
+      teuren Scan, die Auflösung der Saisonlage und den TTL-Cache.
+- [ ] **`DELETE /api/analyses/:id` ohne UI-Anbindung** — Route existiert, die
+      Historie hat keinen Knopf.
+- [ ] **Mock-Keywords kleingeschrieben** — `"emaille tasse vintage"` liest sich in
+      deutschen Empfehlungssätzen falsch. Mock-Verhalten, verschwindet mit echten
+      Keyword-Quellen.
+- [ ] **`rebuildIndex()` ohne Aufrufer** — Wiederherstellung existiert und ist
+      getestet, wird aber nirgends angeboten.
+- [ ] **AI-Pfad nie gegen ein echtes Modell gelaufen** — bewusst: siehe
+      *Key Decisions*. Der Aufruf wurde gegen die API-Referenz korrigiert, aber
+      nicht live verifiziert.
 
 ## Failed Approaches (Don't Repeat These)
 
-**`create-next-app` scheitert am Projektnamen.**
-`npx create-next-app@latest .` bricht ab mit `Could not create a project called "BrandOS" because of npm naming restrictions: name can no longer contain capital letters`. Das Scaffold wurde deshalb von Hand geschrieben (`package.json` trägt `"name": "brandos"`). Nicht erneut versuchen.
+### Discovery-Kandidaten aus Google Trends — zweimal geprüft, zweimal verworfen
 
-**TypeScript 7.0.2 ist mit Next 16 nicht nutzbar.**
-Mit `typescript@7.0.2` (dem nativen Port) bricht `next build` ab:
-```
-It looks like you're trying to use TypeScript but do not have the required package(s) installed.
-...
-The "id" argument must be of type string. Received undefined
-Next.js build worker exited with code: 1
-```
-Next erkennt das Paket nicht. Gepinnt auf `typescript@^5.9.3`. `npm view typescript version` liefert 7.0.2 — nicht blind aktualisieren.
+**`google_trends_trending_now`** ist nachrichtengetrieben. Beispielabfragen der
+Dokumentation: „lizzo", „bet365", „game 7 nba finals", „dutch government
+collapses". Verfügbare Kategorien: Sport, Games, Technik, Unterhaltung, Recht,
+Politik — **keine für Konsum, Haus oder Hobby**.
 
-**ESLint 10 + `eslint-config-next` 16 stürzt ab.**
-```
-TypeError: Converting circular structure to JSON
-    at ConfigValidator.formatErrors (@eslint/eslintrc/lib/shared/config-validator.js:299:23)
-```
-Zwei Ursachen: ESLint 10 ist inkompatibel mit den mitgelieferten Plugins (→ gepinnt auf `eslint@^9.39`), **und** `FlatCompat` darf gar nicht mehr verwendet werden — `eslint-config-next` 16 exportiert native Flat-Configs (`eslint-config-next/core-web-vitals`, `eslint-config-next/typescript`). Die aktuelle `eslint.config.mjs` importiert diese direkt. `@eslint/eslintrc` steht noch in den devDependencies und könnte entfernt werden.
+**Steigende verwandte Suchanfragen** (`RELATED_QUERIES`, Liste `rising`) zu
+breiten Ankerbegriffen wurden **vollständig implementiert, getestet und gegen die
+echte API gemessen**. Ergebnis: von acht Kandidaten war *einer* ein Markt
+(„Geschenk zum Vatertag"). Der Rest: Markennamen („Froplay Hund"), Personen
+(„Hund Jette"), Buchtitel („Das Geschenk des Meeres"), Nachrichten („ADAC 122
+Jahre Geschenk", „Meteorit"), Floskeln („Das perfekte Geschenk"). Ein Jahresfilter
+entfernte Kalenderabfragen („Vatertag 2026"), änderte am Verhältnis aber nichts.
 
-**`experimental.typedRoutes` in `next.config.ts` bricht den Build.**
-Führte zu demselben `The "id" argument must be of type string`-Fehler. In Next 16 ist `typedRoutes` kein Experimental-Flag mehr. Die Option wurde entfernt; `next.config.ts` enthält jetzt nur `reactStrictMode`.
+**Kein Filterproblem, sondern ein Quellenproblem**: Die Liste bildet
+*Aufmerksamkeit* ab, nicht Kaufabsicht. Kein Textfilter unterscheidet „Froplay
+Hund" von „Adventskalender Hund". Die Implementierung wurde zurückgenommen; das
+Messergebnis steht im Kopfkommentar von
+[`src/server/providers/live/google-trends.ts`](src/server/providers/live/google-trends.ts).
+Wer es erneut versucht, braucht eine Quelle mit **kommerziellem** Signal —
+Marktplatz-Suchvorschläge etwa.
 
-**PowerShell-Textmanipulation zerstört UTF-8 und Template-Literale.** Zwei separate Vorfälle:
-1. `Get-Content -Raw` + `Set-Content` in Windows PowerShell 5.1 liest UTF-8 als ANSI → `–` wurde zu `â€“` in allen `*-mock.ts`. Mit einem Node-Skript repariert.
-2. `node -e "…"` mit **doppelten** Anführungszeichen: PowerShell expandiert `${…}` im JS-Code und leerte damit sämtliche Template-Platzhalter in `opportunity-score.ts` (`Nachfrageindex /100.` statt `Nachfrageindex ${de(relative)}/100.`). Einzeln repariert.
+### YouTube als nächste Quelle — vor dem Bau verworfen
 
-**Konsequenz: Für Datei-Transformationen ausschließlich Node-Skriptdateien verwenden, nie Inline-Code über PowerShell und nie `Get-Content`/`Set-Content` auf Quelldateien.**
+`AudienceSignal` verlangt Zielgruppensegmente mit Anteilen. Die gibt YouTube nur
+für den **eigenen** Kanal über die Analytics-API heraus, nicht für einen
+Suchbegriff. Übrig bliebe Engagement als Näherung für `emotionalIntensity` —
+wieder erfundene Zahlen.
+
+### Aus der vorigen Sitzung (weiterhin gültig)
+
+- **`create-next-app` scheitert am Projektnamen** (`BrandOS` enthält
+  Großbuchstaben). Scaffold ist handgeschrieben.
+- **TypeScript 7.0.2 ist mit Next 16 nicht nutzbar** — `next build` bricht mit
+  `The "id" argument must be of type string. Received undefined` ab. Gepinnt auf
+  `^5.9.3`. `npm view typescript version` liefert 7.0.2 — **nicht blind
+  aktualisieren.**
+- **ESLint 10 + `eslint-config-next` 16 stürzt ab** (`TypeError: Converting
+  circular structure to JSON`). Gepinnt auf `^9.39`. `FlatCompat` darf nicht
+  verwendet werden — `eslint-config-next` 16 exportiert native Flat-Configs.
+- **`experimental.typedRoutes` bricht den Build** in Next 16.
+- **PowerShell-Textmanipulation zerstört UTF-8 und Template-Literale.**
+  `Get-Content -Raw` + `Set-Content` liest UTF-8 als ANSI; `node -e "…"` mit
+  **doppelten** Anführungszeichen expandiert `${…}` in der Shell. **Für
+  Datei-Transformationen ausschließlich Node-Skriptdateien verwenden.**
 
 ## Key Decisions
 
 | Decision | Rationale |
 |---|---|
+| **Nicht Messbares bleibt leer, statt geschätzt zu werden** | Das Datenmodell war gegen einen allwissenden Mock entworfen. Jede echte Quelle weiß weniger. Sechs Felder sind jetzt optional; die UI zeigt „—". Eine Hochrechnung sähe in der Oberfläche aus wie eine Messung. |
+| **Normierungen gehören ins Scoring, nicht in den Provider** | Ein Provider meldet Messwerte. Eine Suchergebnisliste kennt ihre Trefferzahl, nicht deren Verhältnis zur Nachfrage — der Sättigungsindex wird deshalb im Scoring aus `listingCount` abgeleitet, wenn keine Quelle ihn liefert. |
+| **Heuristik ist die Voreinstellung, nicht der Ausweichweg** | Der Score entsteht ohnehin ohne Modell. Solange ein großer Teil der Signale synthetisch ist, würde ein Modell diese Daten nur *eloquenter* deuten — flüssige Sätze über eine Zielgruppe, die niemand gemessen hat. `BRANDOS_AI_MODE=heuristic`. Nachrüstbar über eine Zeile. |
+| **Antwort-Cache mit Plattenablage, nicht nur im Speicher** | Next startet im Dev-Betrieb bei jeder Änderung neu. Ein reiner Speicher-Cache wäre dabei jedes Mal leer und das API-Kontingent nach wenigen Änderungen aufgebraucht. |
+| **Stabile Fehlschläge werden mitgecacht, vorübergehende nie** | Dass Trends einen Begriff nicht kennt, ist eine Eigenschaft des Begriffs. Ein Ratenlimit sagt nichts über die Anfrage aus — es einzubrennen ließe den Begriff bis zum Ablauf der Frist tot. |
+| **Gesponserte eBay-Treffer fliegen aus der Stichprobe** | Bezahlte Platzierungen sind keine Marktstichprobe. Im Test verschoben sie den Median um das Zwanzigfache. |
 | Score deterministisch, ohne Modellbeteiligung | Eine Zahl, die Investitionsentscheidungen trägt, muss reproduzierbar und testbar sein. Das Modell *erklärt* den Score, es berechnet ihn nicht. |
-| Interpretation kennt den Score, nicht umgekehrt | Sonst driften Zahl und Erklärung auseinander. Deshalb die feste Pipeline-Reihenfolge Sammeln → Bewerten → Deuten → Sichern. |
-| Fehlende Signale senken die Konfidenz, nicht den Score | Ein fehlender Wert ist Unsicherheit, keine schlechte Nachricht. Faktoren werden neutral bewertet, als `imputed` markiert und aus Treibern/Bremsen ausgeschlossen. |
-| Heuristik als vollwertige `Analyst`-Implementierung | Ohne API-Key, bei Modellausfall und in Tests liefert das Produkt dieselbe Ergebnisstruktur. `producedBy.degraded` weist das aus, statt es zu verbergen. |
-| Gemeinsames Markt-Fixture hinter allen Mock-Providern | Ein Markt mit 40.000 Listings und gleichzeitig 300 Suchanfragen wäre unglaubwürdig. Provider bleiben technisch unabhängig, projizieren aber Ausschnitte derselben Wahrheit. |
-| Deterministischer PRNG (Mulberry32, FNV-1a-Seed) | Dieselbe Suchanfrage muss dasselbe Marktbild ergeben — sonst widersprechen gespeicherte Analysen späteren Ansichten desselben Marktes. |
-| JSON-Dateien statt Datenbank | Einzige Anforderung ist „Analysen wiederfinden". Kein Betriebsaufwand, keine Migrationen, keine nativen Abhängigkeiten. Vertrag bleibt austauschbar. |
-| Keine Chart-Bibliothek | Sparkline, Score-Ring und Saisonverlauf sind wenige Zeilen SVG, rendern serverseitig und folgen den Design-Tokens. |
-| Discovery bewertet nur mit `demand` + `competition` | Vollanalyse je Kandidat wäre um ein Vielfaches teurer, ohne die Rangfolge wesentlich zu ändern. Tiefe Auswertung erst beim Öffnen. |
-| Mock-Provider simulieren Latenz und Ausfälle | Der Aggregator ist damit gegen Teilausfälle getestet, bevor die erste echte API angebunden wird. |
+| Fehlende Signale senken die Konfidenz, nicht den Score | Ein fehlender Wert ist Unsicherheit, keine schlechte Nachricht. |
+| JSON-Dateien statt Datenbank | Einzige Anforderung ist „Analysen wiederfinden". Vertrag bleibt austauschbar. |
 
 ## Current State
 
-**Working**: Alles. `npm run dev` läuft ohne jede Konfiguration im synthetischen Modus.
-Verifiziert im Browser: Dashboard (Discovery in eigener Suspense-Grenze), Discovery mit
-Gruppierung nach Chancen-Art, Recherche mit Auto-Start aus `?term=`, Analyse-Detailseite,
-Historie, saisonale Fenster mit Peak-Badge. `npm run build`, `npx tsc --noEmit`,
-`npm run lint` (0 Warnungen) und `npm test` (42/42) sind grün.
+**Working**: Alles. `npm run dev` läuft. `/api/health` meldet:
+
+```json
+{"status":"ok","dataMode":"mixed","analyst":"heuristic",
+ "providers":{"registered":8,"active":[
+   {"id":"google-trends","label":"Google Trends","kind":"live","capabilities":["demand"]},
+   {"id":"ebay","label":"eBay","kind":"live","capabilities":["competition","pricing"]},
+   … 5 Mocks …]}}
+```
+
+Verifiziert im Browser: Dashboard, Discovery, Recherche, Analyse-Detail, Historie,
+Merken, gefilterte Historie.
+
+**Anteil echter Daten an der Score-Gewichtung:**
+
+| Signal | Quelle | Gewicht |
+|---|---|---|
+| Nachfrage, Trend, Saisonales Timing | Google Trends | 42 % |
+| Wettbewerb, Preisspielraum | eBay | 25 % |
+| Marktalter, Geschenkpotenzial, Emotion, Produktvielfalt | **noch Mocks** | 33 % |
 
 **Broken**: Nichts bekannt.
 
-**Uncommitted Changes**: Keine — Working Tree sauber. Der Stand liegt vollständig in den
-Commits auf `main`; kein Remote konfiguriert (`git log --oneline` für die Historie).
-`.gitignore` deckt `node_modules`, `.next`, `.env*.local`, `next-env.d.ts`, `*.tsbuildinfo`
-und `.data` ab (verifiziert mit `git check-ignore -v`). In `.data/analyses/` liegen 6
-Testanalysen aus der Verifikation; sie sind ignoriert und können gelöscht werden.
+**Uncommitted Changes**: Keine. `HEAD == origin/main == b934d52`.
 
-**Git-Identität**: **repo-lokal** gesetzt auf `Jannis Grajczyk <jannis.grajczyk@gmail.com>` —
-global war keine konfiguriert. Der Name ist aus der E-Mail-Adresse abgeleitet; falls er nicht
-stimmt: `git config user.name "…"` und `git commit --amend --reset-author --no-edit`.
+**Kontingent**: `.data/provider-cache/` enthält Antworten für `google-trends` und
+`ebay`, 12 h gültig. Ein frischer Discovery-Lauf kostet ~14 SerpAPI-Aufrufe,
+wiederholte Läufe null.
 
 ## Files to Know
 
 | File | Why It Matters |
 |---|---|
-| `src/domain/types.ts` | Die Sprache des Produkts. Alles andere referenziert diese Typen. |
-| `src/domain/scoring/opportunity-score.ts` | Die 9 Faktoren. Jede Änderung hier verschiebt alle Bewertungen. |
-| `src/domain/scoring/weights.ts` | Gewichtung als Produktentscheidung, Summe muss 1 ergeben (Test sichert das). |
-| `src/server/providers/types.ts` | Der `DataProvider`-Vertrag — Ausgangspunkt für jede neue Quelle. |
-| `src/server/providers/registry.ts` | Einziger Ort, der konkrete Provider kennt. Live gewinnt gegen Mock. |
-| `src/server/providers/aggregator.ts` | Zusammenführung, Konfliktauflösung, `dataQuality`-Berechnung. |
-| `src/server/providers/aggregator.test.ts` | 15 Tests — zugleich Vorlage für Fake-Provider in weiteren Tests. |
-| `src/server/services/discovery-service.ts` | Kandidatensuche, schlanker Scan, Auflösung der Saisonlage. |
-| `src/server/providers/mock/market-fixture.ts` | Erzeugt die synthetische Marktwahrheit; alle Mocks projizieren daraus. |
-| `src/server/ai/anthropic-analyst.ts` | Modellaufruf. Nie gegen ein echtes Modell gelaufen. |
-| `src/server/ai/index.ts` | Fallback-Logik Modell → Heuristik. |
+| `src/domain/types.ts` | Die Sprache des Produkts. **Sechs Felder sind optional** — die Kommentare erklären je, warum. |
+| `src/domain/scoring/opportunity-score.ts` | Die 9 Faktoren. `scoreCompetition` leitet die Sättigung aus `listingCount` ab, wenn keine Quelle sie meldet; `scoreMarketAge` gibt auf, wenn Alter und Neuzugänge fehlen. |
+| `src/server/providers/live/google-trends.ts` | Erste echte Quelle. **Kopfkommentar enthält das Messergebnis der verworfenen Discovery-Versuche.** |
+| `src/server/providers/live/ebay.ts` | Angebotsseite. Dokumentiert im Kopf, was eine Suchergebnisliste hergibt und was nicht. |
+| `src/server/providers/util/response-cache.ts` | Dreischichtiger Cache. Der Grund, warum das Kontingent hält. |
+| `src/server/providers/aggregator.ts` | `blendOptional` mischt nur über Quellen, die einen Wert kennen. |
+| `src/server/ai/heuristic-analyst.ts` | Erzeugt alles, was der Nutzer liest. `buildSynthesis()` verknüpft je zwei Signale. |
+| `src/domain/ideas/idea-generator.ts` | Signalgetrieben, nicht lexikonbasiert. `productPhrase()` löst die deutsche Kompositionsgrammatik. |
+| `src/server/repositories/json-analysis-repository.ts` | `isSafeId()` gilt jetzt auch auf der **Schreibseite**. |
 | `src/server/config/env.ts` | Einziger Ort, der `process.env` liest. |
-| `src/app/globals.css` | Design-Tokens (Light/Dark) — Komponenten greifen nur hierauf zu. |
-| `scripts/alias-hooks.mjs` | Löst `@/` und endungslose Importe für den Node-Testrunner auf. |
+| `scripts/alias-hooks.mjs` | Löst `@/` für den Node-Testrunner auf. **Tests nur über `npm test` starten** — ein direkter `node --test`-Aufruf umgeht den Hook. |
 
 ## Code Context
 
-**Der Provider-Vertrag** — das ist alles, was eine neue Quelle implementieren muss:
+**Der Provider-Vertrag** — alles, was eine neue Quelle implementieren muss:
 
 ```ts
-// src/server/providers/types.ts
 interface DataProvider {
   readonly id: SourceId;                    // in domain/types.ts ergänzen
   readonly label: string;
   readonly capabilities: readonly Capability[];
   readonly kind: "live" | "mock";
-  readonly priority: number;                // höher gewinnt bei Signalkonflikten
-  isAvailable(): boolean;                   // z.B. Boolean(getConfig().providers.keys.serpApi)
+  readonly priority: number;                // höher gewinnt bei Konflikten
+  isAvailable(): boolean;
   fetch(query: MarketQuery, context: ProviderContext): Promise<ProviderResult>;
   discover?(context: ProviderContext): Promise<DiscoverySeed[]>;
 }
-
-interface ProviderResult {
-  confidence: number;        // 0..1 — Selbsteinschätzung
-  synthetic: boolean;        // false bei echten Daten
-  freshnessDays: number;
-  payload: ProviderPayload;  // alle Felder optional
-  message?: string;          // erscheint im UI-Quellenprotokoll
-}
 ```
 
-Registrierung: in `src/server/providers/registry.ts` dem Array am Dateianfang hinzufügen.
-Mehr ist nicht nötig — `resolveProviders()` bevorzugt bei gleicher `id` automatisch
-`kind: "live"` gegenüber `kind: "mock"`.
+Registrieren in `src/server/providers/registry.ts`. Prioritäten heute:
+`google-trends` 20 · `reddit` 18 · `pinterest` 15 · **`ebay` 12** · `etsy` 10 ·
+`amazon` 8 · `tiktok` 6.
 
-**Konfliktauflösung im Aggregator** (relevant, wenn Live- und Mock-Daten gemischt auftreten):
+**Das Muster für jede neue Live-Quelle** (aus `ebay.ts`, gekürzt):
 
 ```ts
-// collectSignals(query, options) — options.providers überschreibt die Registry
-// (nur für Tests; siehe src/server/providers/aggregator.test.ts als Vorlage).
-//
-// Gewicht eines Beitrags = provider.priority * result.confidence
-// - demand:      Zeitreihe von der stärksten Quelle, Wachstumsraten gewichtet gemischt
-// - competition: listingCount/activeSellers vom Leitmarkt, Rest gemischt
-// - pricing:     alle numerischen Felder gewichtet gemischt
-// - seasonality/audience/design: pickBest — stärkster Beitrag unverändert
-// - keywords:    Union, mehrfach bestätigte zuerst
+let cache: ProviderResponseCache<ProviderResult> | undefined;
+let limit: ReturnType<typeof createLimiter> | undefined;
+
+// Erst beim ersten Aufruf erzeugen, nicht beim Laden des Moduls –
+// sonst friert der Zustand ein, bevor resetConfig() in Tests greift.
+function infrastructure() {
+  const { providers, storage } = getConfig();
+  cache ??= new ProviderResponseCache<ProviderResult>({
+    namespace: "ebay",
+    ttlMs: providers.cacheTtlMs,
+    errorTtlMs: providers.cacheTtlMs * 2,
+    dataDir: storage.dataDir,
+    isStableFailure,        // nur Eigenschaften der Anfrage, nie des Moments
+  });
+  limit ??= createLimiter(providers.maxConcurrent);
+  return { cache, limit };
+}
+
+export function resetEbayInfrastructure(): void { cache = undefined; limit = undefined; }
 ```
 
-**Saisonlage eines Discovery-Kandidaten** (`DiscoveryOpportunity.seasonality`, optional):
+**Optionale Signalfelder** — die sechs und je der Grund:
 
 ```ts
-interface SeasonalWindow {
-  peakMonths: number[];    // 1..12
-  monthsToPeak: number;    // 0 = Peak läuft gerade
-  nextPeakMonth: number;   // der Peak, auf den monthsToPeak zeigt
-  amplitude: number;       // 0..1, unter 0.15 gilt der Markt als ganzjährig
-}
+DemandSignal.estimatedMonthlySearches?   // Trends misst nur relativ
+CompetitionSignal.activeSellers?         // Stichprobe kennt nur sichtbare Treffer
+CompetitionSignal.saturationIndex?       // Einordnung, keine Messung → Scoring leitet ab
+CompetitionSignal.medianListingAgeDays?  // steht in keiner Ergebnisliste
+CompetitionSignal.newListings30dPct?     // dito
+PricingSignal.avgReviewsPerListing?      // Marktplätze weisen Verkäufer-, nicht Listing-Bewertungen aus
 ```
-
-`nextPeakMonth` ist **nicht** `peakMonths[0]`: Bei mehreren Peaks kann der
-nächstgelegene ein späterer Eintrag sein. Das Feld existiert genau deshalb —
-die Darstellung soll es nicht erneut herleiten müssen.
 
 **API-Antwortform** (`POST /api/research`):
 
 ```json
-{ "id": "uuid", "term": "Hunde", "score": 53.1, "grade": "C",
-  "durationMs": 758, "analyst": "heuristic" }
+{ "id": "uuid", "term": "Emaille Tasse", "score": 43.1, "grade": "D",
+  "durationMs": 7718, "analyst": "heuristic" }
 ```
+
+`GET /api/analyses/:id` antwortet **umschlagen**: `{ "analysis": { … } }`.
 
 **Nicht offensichtlich:**
 
-- `TtlCache.resolve()` teilt laufende Berechnungen — gleichzeitige Aufrufe mit demselben Schlüssel lösen nur *eine* Discovery aus.
-- `JsonAnalysisRepository` serialisiert Schreibzugriffe über eine Promise-Kette (`enqueue`). Das wirkt nur, wenn alle Zugriffe durch **dieselbe Instanz** laufen — deshalb das Singleton in `repositories/index.ts`.
-- `de()`/`dePercent()` aus `domain/format.ts` sind für servergenerierte **Texte**, `lib/format.ts` für die **UI**. Beide nutzen `de-DE`. Nicht vermischen: Rohe `round()`-Werte in deutschen Sätzen erzeugen englische Dezimalpunkte.
-- `demand.direction` ist die maßgebliche Trendaussage (berücksichtigt beide Zeiträume). Aussagen, die nur `growth90d` betrachten, widersprechen ihr — dieser Bug war vorhanden und wurde behoben.
+- `ProviderResponseCache.resolve()` wirft einen gespeicherten Fehlschlag als
+  `CachedFailure` — der Provider fängt ihn und wirft ihn als `ProviderError`
+  weiter, damit sich Cache-Treffer und frischer Abruf für den Aggregator
+  identisch verhalten.
+- `buildInsights()` reserviert einen Platz für die Warnung zur Datengrundlage.
+  Vorher fiel sie durch `slice(0, 8)` heraus, sobald ein Markt alle Signalblöcke
+  füllte — ausgerechnet dann, wenn sie gilt.
+- `productPhrase(niche, productType)` hat drei Formen: einwortige Nische →
+  `Dackel-Hoodie`; mehrwortige → `Hoodie zum Thema Emaille Tasse`; Produktart
+  schon in der Nische → nur die Nische. Bindestrich-Verkettung ist im Deutschen
+  nur bei einwortigen Basen korrekt.
+- `de()`/`dePercent()` aus `domain/format.ts` für servergenerierte **Texte**,
+  `lib/format.ts` für die **UI**. Nicht vermischen.
+- `demand.direction` ist die maßgebliche Trendaussage.
 
 ## Resume Instructions
 
@@ -206,53 +261,106 @@ die Darstellung soll es nicht erneut herleiten müssen.
    ```bash
    npm run typecheck && npm run lint && npm test && npm run build
    ```
-   - Erwartet: keine Fehler, 42/42 Tests, Build listet 10 Routen.
-   - Falls TypeScript-Fehler zu Next-Typen: `.next/` löschen und erneut bauen.
+   - Erwartet: keine Fehler, **169/169 Tests**, Build listet 10 Routen.
+   - Bei TypeScript-Fehlern zu Next-Typen: `.next/` löschen, neu bauen.
 
 2. **App starten und Betriebsmodus prüfen**:
    ```bash
    npm run dev
    ```
-   Dann `http://localhost:3000/api/health` aufrufen.
-   - Erwartet: `{"status":"ok","dataMode":"mock","analyst":"heuristic","providers":{"registered":6,"active":[…]}}`
-   - Zeigt `analyst: "heuristic"` obwohl `ANTHROPIC_API_KEY` gesetzt ist: `BRANDOS_AI_MODE` steht auf `heuristic`.
+   Dann `http://localhost:3000/api/health`.
+   - Erwartet: `"dataMode":"mixed"`, `google-trends` und `ebay` mit
+     `"kind":"live"`, 7 aktive Provider.
+   - Zeigt `dataMode: "mock"`: `SERPAPI_KEY` fehlt in `.env.local`.
 
-3. **AI-Pfad verifizieren** (falls ein Key vorliegt):
-   `.env.local` mit `ANTHROPIC_API_KEY=…` anlegen, Server neu starten, dann eine Analyse
-   über die Recherche-Seite starten.
-   - Erwartet: Auf der Analyse-Detailseite **fehlt** der graue Hinweis „Diese Interpretation stammt aus der regelbasierten Auswertung", und `POST /api/research` liefert `"analyst": "anthropic"`.
-   - Bleibt es bei `heuristic`: Serverlog prüfen — `WARN brandos:ai – Modell nicht nutzbar` nennt den Grund im Klartext (Ratenlimit, Schemafehler, Ablehnung).
+3. **Eine Analyse fahren** und gegen den Cache prüfen:
+   ```bash
+   curl -X POST localhost:3000/api/research -H "content-type: application/json" -d '{"term":"Dackel"}'
+   ```
+   - Erwartet: `{"id":"…","score":…,"analyst":"heuristic"}` in wenigen Sekunden.
+   - Zweiter identischer Aufruf: **keine** neuen `Google Trends ausgewertet` /
+     `eBay ausgewertet` im Serverlog — der Cache trägt.
+   - Kommen doch Abrufe: `.data/provider-cache/` prüfen, oder
+     `BRANDOS_PROVIDER_CACHE_TTL_MS` steht auf 0.
 
-4. **Ersten Live-Provider bauen** (`src/server/providers/live/google-trends.ts`):
-   - `DataProvider` implementieren, `kind: "live"`, `priority: 20`, `isAvailable()` gegen `getConfig().providers.keys.serpApi`
-   - In `registry.ts` registrieren
-   - Verifikation: `/api/health` zeigt `dataMode: "mixed"` und `google-trends` mit `kind: "live"`; im Analyse-UI wechselt das Quellenprotokoll für diese Zeile auf „Live-Daten".
+4. **Weiterarbeiten** — Vorschlag nach Wert:
+   - **Etsy**, sobald freigegeben. Vorlage: `src/server/providers/live/ebay.ts`.
+     Priorität über 12 wählen, damit es eBay überstimmt.
+   - **Discovery-Service testen** (`src/server/services/discovery-service.ts`).
+     Vorlage für Fake-Provider: `src/server/providers/aggregator.test.ts`.
+   - **DELETE-UI** in der Historie anbinden.
 
 ## Setup Required
 
 - Node 24 / npm 11 (getestet mit v24.14.0 / 11.9.0)
-- **Keine** Umgebungsvariablen nötig — alle sind optional, siehe `.env.example`
-- Für den AI-Pfad: `ANTHROPIC_API_KEY` in `.env.local`
-- `.claude/launch.json` ist vorhanden (Dev-Server auf Port 3000)
+- **`.env.local`** im Projektwurzelverzeichnis. Existiert bereits und enthält
+  `SERPAPI_KEY`. Ohne ihn fällt alles auf Mocks zurück, die App bleibt
+  vollständig nutzbar.
+- **Keine** weiteren Variablen nötig. `BRANDOS_AI_MODE=heuristic` ist die
+  dokumentierte Voreinstellung; ein `ANTHROPIC_API_KEY` ist **bewusst nicht**
+  gesetzt.
+- `.claude/launch.json` vorhanden (Dev-Server auf Port 3000).
+
+**Zugangsdaten nie in den Chat schreiben.** `.gitignore` deckt `.env*` außer
+`.env.example` ab (mit `git check-ignore -v` verifiziert).
+
+**Stand der API-Anträge** (privater, nicht-kommerzieller Einzelplatzbetrieb):
+
+| Quelle | Stand |
+|---|---|
+| SerpAPI | ✅ aktiv — Google Trends, eBay, (Amazon, YouTube möglich) |
+| Etsy | ⏳ Antrag gestellt, Personal App, wartet auf Freigabe |
+| Reddit | ❌ Selbstregistrierung seit Nov 2025 geschlossen, 2–4 Wochen Freigabe |
+| Pinterest | ❌ Trial nach Review, Standard braucht Video-Demo |
+| TikTok | ❌ Research API nur akademisch/non-profit |
+| Amazon direkt | ❌ PA-API eingestellt Mai 2026; SerpAPI ist der Weg |
 
 ## Edge Cases & Error Handling
 
-- **Alle Provider fallen aus** → `MarketSignals` ohne `demand`; alle Score-Faktoren `imputed`, Konfidenz auf Minimum, Treiber/Bremsen leer. Discovery überspringt solche Kandidaten (`scanSeed` gibt `undefined` zurück).
-- **Modell antwortet mit `stop_reason: "refusal"` oder `"max_tokens"`** → `AnalystError`, Fallback auf Heuristik, Grund erscheint als zusätzlicher Eintrag in `interpretation.risks`.
-- **Modellantwort verletzt das Schema** → lokale Zod-Validierung schlägt an, gleicher Fallback. Structured Outputs erzwingen die Form, nicht die Plausibilität — die Doppelprüfung ist Absicht.
-- **Manipulierte Analyse-ID** → `isSafeId()` in `json-analysis-repository.ts` blockiert Pfad-Traversal; Seite rendert `not-found.tsx`.
-- **Index-Datei beschädigt** → wird als leer behandelt (Warnung im Log). `JsonAnalysisRepository.rebuildIndex()` stellt ihn aus den Einzeldateien wieder her — noch ohne Aufrufer.
-- **Gleichzeitige Analysen desselben Begriffs** → beide werden gespeichert (eigene IDs). Kein Dedup gewollt: Zeitpunkte unterscheiden sich.
-- **Nicht behandelt**: Rate-Limiting der eigenen API, Authentifizierung, Mandantentrennung.
+- **Alle Provider fallen aus** → `MarketSignals` ohne `demand`; alle Faktoren
+  `imputed`, Konfidenz minimal, Treiber/Bremsen leer. Discovery überspringt
+  solche Kandidaten.
+- **Trends kennt den Begriff nicht** → `ProviderError` mit der SerpAPI-Meldung im
+  Klartext, **im Cache abgelegt** (Eigenschaft des Begriffs), Quellenprotokoll
+  zeigt den Grund.
+- **SerpAPI-Kontingent erschöpft (429)** → `ProviderError` „Kontingent
+  erschöpft", **nicht** gecacht.
+- **eBay liefert unter 5 verwertbare Preise** → `ProviderError`; eine Verteilung
+  aus drei Listings wäre keine.
+- **Keine Quelle kennt die Sättigung** → Feld bleibt leer, Scoring leitet aus
+  `listingCount` ab, Rationale sagt „(aus der Listing-Zahl abgeleitet)".
+- **Manipulierte Analyse-ID** → `isSafeId()` blockiert Lesen, Löschen **und
+  Schreiben**; `save()` wirft laut, statt still zu verwerfen.
+- **Index beschädigt** → als leer behandelt, Einzeldateien bleiben unversehrt,
+  `rebuildIndex()` stellt ihn her.
+- **Nicht behandelt**: Rate-Limiting der eigenen API, Authentifizierung,
+  Mandantentrennung.
 
 ## Warnings
 
-- **Keine TypeScript-Parameter-Properties** (`constructor(readonly x: T)`). Sie erzeugen Laufzeitcode, den Nodes Type-Stripping nicht unterstützt — der Testlauf bricht mit `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` ab. Felder ausschreiben.
-- **Tests laufen mit `--conditions=react-server`**, damit `server-only` auf die leere Variante auflöst. Ohne das schlägt jeder Test fehl, der ein Servermodul importiert.
-- **`round()` nicht in deutschen Sätzen verwenden.** Erzeugt `36.2` statt `36,2`. Immer `de()`/`dePercent()`/`deShare()`/`deCompact()` aus `src/domain/format.ts`.
-- **Kein `toLowerCase()` auf deutschen Text.** Substantive bleiben großgeschrieben. Dieser Bug war zweimal vorhanden (Ideentitel, Discovery-Hinweise).
-- **Mock-Provider werfen absichtlich Fehler** (4–8 % Wahrscheinlichkeit, seed-abhängig) und simulieren Latenz. Sporadische `WARN brandos:aggregator – Provider fehlgeschlagen`-Einträge sind erwartetes Verhalten, kein Defekt.
-- **`buildMarketFixture()` cached pro Begriff und Kalendermonat.** Änderungen an Lexikon oder Fixture wirken sich im laufenden Dev-Server erst nach Neustart aus.
-- **`server-only` in Server-Modulen ist Absicht** — der Import bricht den Build, falls ein Client-Component versehentlich Serverlogik zieht.
-- **`"type": "module"` in `package.json` ist nötig** für den Node-Testrunner (sonst `MODULE_TYPELESS_PACKAGE_JSON`-Warnung). Build und Dev funktionieren damit; nicht entfernen.
-- **`src/**/*.test.ts` liegt neben dem Produktivcode** und wird von `tsc` mitgeprüft, aber nicht gebundelt (kein App-Code importiert sie).
+- **Keine TypeScript-Parameter-Properties** (`constructor(private readonly x: T)`).
+  Nodes Type-Stripping unterstützt sie nicht; der Testlauf bricht mit
+  `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` ab. Die letzte wurde in `util/cache.ts`
+  entfernt — **nicht wieder einführen.**
+- **Tests nur über `npm test` starten.** Ein direkter
+  `node --test src/…/x.test.ts` umgeht `scripts/alias-hooks.mjs` und scheitert mit
+  `ERR_MODULE_NOT_FOUND`.
+- **Tests laufen mit `--conditions=react-server`**, damit `server-only` leer
+  auflöst.
+- **`round()` nicht in deutschen Sätzen verwenden** — erzeugt `36.2` statt `36,2`.
+  Ein Test in `heuristic-analyst.test.ts` sucht englische Dezimalpunkte in jedem
+  erzeugten Text und schlägt an.
+- **Kein `toLowerCase()` auf deutschem Text.** Der Bug war dreimal vorhanden.
+  `toLowerCase()` für *Vergleiche* ist in Ordnung, für Ausgaben nie.
+- **Mock-Provider werfen absichtlich Fehler** (4–8 %, seed-abhängig). Sporadische
+  `WARN brandos:aggregator – Provider fehlgeschlagen` sind erwartet.
+- **`buildMarketFixture()` cached pro Begriff und Kalendermonat.** Änderungen am
+  Lexikon wirken erst nach Neustart.
+- **Discovery hat einen eigenen 15-Minuten-Cache** (`TtlCache` in
+  `discovery-service.ts`), unabhängig vom Provider-Cache. Wer Discovery-Änderungen
+  testet, muss den Dev-Server neu starten — das Leeren von
+  `.data/provider-cache/` genügt nicht.
+- **`.env.local` niemals mit `Write` überschreiben** — sie enthält den Key. Bei
+  Änderungen gezielt mit `Edit` arbeiten oder den Nutzer bitten.
+- **`server-only` in Server-Modulen ist Absicht.**
+- **`"type": "module"` in `package.json` ist nötig** für den Testrunner.
