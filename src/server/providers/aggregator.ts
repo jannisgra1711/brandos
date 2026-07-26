@@ -202,14 +202,48 @@ async function runProvider(
 
 type PayloadKey = keyof ProviderPayload;
 
+/**
+ * Ob ein Beitrag zu einem Signal tatsächlich etwas beigesteuert hat.
+ *
+ * Eine leere Liste ist kein Beitrag: Meldet eine Quelle `keywords: []`,
+ * hat sie zum Ergebnis nichts gesagt.
+ */
+function carries(contribution: Contribution, key: PayloadKey): boolean {
+  const value = contribution.result.payload[key];
+  if (value === undefined) return false;
+  return Array.isArray(value) ? value.length > 0 : true;
+}
+
+/**
+ * Die Beiträge zu einem Signal, stärkster zuerst.
+ *
+ * **Sobald eine gemessene Quelle das Signal trägt, fallen die synthetischen
+ * heraus.** Ein Mock ist ein Platzhalter für eine fehlende Quelle, kein
+ * gleichberechtigter Zeuge: Ihn in eine echte Messung einzumischen macht
+ * die Messung schlechter, nicht die Schätzung besser. Ein erfundener
+ * Sättigungsindex neben einer echten Preisverteilung verschiebt am Ende
+ * beide.
+ *
+ * Die Folge ist gewollt: Wo nur ein Mock antwortet, bleibt es beim Mock –
+ * sichtbar über `provenance`. Wo eine echte Quelle antwortet, ist das
+ * Signal vollständig echt, auch wenn dabei Felder leer bleiben, die nur
+ * der Mock kannte. Ein leeres Feld ist eine Lücke, ein erfundenes eine
+ * Falschaussage.
+ */
+function contributorsTo(contributions: Contribution[], key: PayloadKey): Contribution[] {
+  const present = contributions.filter((c) => carries(c, key));
+  const measured = present.filter((c) => !c.result.synthetic);
+  return [...(measured.length > 0 ? measured : present)].sort((a, b) => b.weight - a.weight);
+}
+
 function withPayload<K extends PayloadKey>(
   contributions: Contribution[],
   key: K,
 ): { value: NonNullable<ProviderPayload[K]>; weight: number }[] {
-  return contributions
-    .filter((c) => c.result.payload[key] !== undefined)
-    .map((c) => ({ value: c.result.payload[key] as NonNullable<ProviderPayload[K]>, weight: c.weight }))
-    .sort((a, b) => b.weight - a.weight);
+  return contributorsTo(contributions, key).map((c) => ({
+    value: c.result.payload[key] as NonNullable<ProviderPayload[K]>,
+    weight: c.weight,
+  }));
 }
 
 /** Uebernimmt das Signal des stärksten Beitrags unverändert. */
@@ -231,25 +265,13 @@ function blend(entries: { value: number; weight: number }[]): number {
 // Herkunft
 // ---------------------------------------------------------------------------
 
-/**
- * Ob ein Beitrag zu einem Signal tatsächlich etwas beigesteuert hat.
- *
- * Eine leere Liste ist kein Beitrag: Meldet eine Quelle `keywords: []`,
- * hat sie zum Ergebnis nichts gesagt und darf die Herkunft nicht verwässern.
- */
-function contributesTo(contribution: Contribution, key: ProvenanceKey): boolean {
-  const value = contribution.result.payload[key];
-  if (value === undefined) return false;
-  return Array.isArray(value) ? value.length > 0 : true;
-}
-
 function provenanceFor(
   contributions: Contribution[],
   key: ProvenanceKey,
 ): SignalProvenance | undefined {
-  const entries = contributions
-    .filter((c) => contributesTo(c, key))
-    .sort((a, b) => b.weight - a.weight);
+  // Dieselbe Auswahl wie bei der Zusammenführung – sonst nennt die Herkunft
+  // Quellen, die am Wert gar nicht beteiligt waren.
+  const entries = contributorsTo(contributions, key);
 
   if (entries.length === 0) return undefined;
 

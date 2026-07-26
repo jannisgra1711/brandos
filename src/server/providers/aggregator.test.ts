@@ -627,20 +627,18 @@ describe("collectSignals – Herkunft der Signale", () => {
     assert.equal(signals.provenance?.demand?.syntheticShare, 1);
   });
 
-  it("gewichtet den synthetischen Anteil, statt Quellen zu zählen", async () => {
+  it("gewichtet den synthetischen Anteil über mehrere Mock-Quellen", async () => {
     const signals = await collectSignals(QUERY, {
       now: NOW,
       providers: [
-        // Gewicht 18 – echt.
-        provider({ id: "google-trends", priority: 20, confidence: 0.9, payload: { demand: demandA }, synthetic: false }),
-        // Gewicht 3 – synthetisch.
-        provider({ id: "tiktok", priority: 6, confidence: 0.5, payload: { demand: demandB }, synthetic: true }),
+        provider({ id: "reddit", priority: 18, confidence: 1, payload: { demand: demandA }, synthetic: true }),
+        provider({ id: "tiktok", priority: 6, confidence: 1, payload: { demand: demandB }, synthetic: true }),
       ],
     });
 
-    // Gezählt wäre die Hälfte synthetisch. Gewichtet sind es 3 von 21 –
-    // die schwache Mock-Quelle hat den Wert kaum bewegt.
-    assert.equal(signals.provenance?.demand?.syntheticShare, 0.14);
+    // Ohne echte Quelle tragen beide Mocks – und beide sind synthetisch.
+    assert.deepEqual(signals.provenance?.demand?.sources, ["reddit", "tiktok"]);
+    assert.equal(signals.provenance?.demand?.syntheticShare, 1);
   });
 
   it("hält die Herkunft je Signal getrennt", async () => {
@@ -714,5 +712,122 @@ describe("collectSignals – Produktarten ohne gemessenes Wachstum", () => {
     });
 
     assert.equal(signals.productTypes[0]?.growth90d, 0.12);
+  });
+});
+
+/**
+ * Ein Mock ist ein Platzhalter für eine fehlende Quelle, kein
+ * gleichberechtigter Zeuge. Ihn in eine echte Messung einzumischen macht die
+ * Messung schlechter, nicht die Schätzung besser.
+ */
+describe("collectSignals – gemessene Quellen verdrängen synthetische", () => {
+  const mockCompetition = {
+    listingCount: 8_000,
+    activeSellers: 5_006,
+    saturationIndex: 64,
+    top10SharePct: 30,
+    medianListingAgeDays: 545,
+    newListings30dPct: 7.2,
+    entryBarrier: "medium" as const,
+  };
+
+  const measuredCompetition = {
+    listingCount: 243,
+    top10SharePct: 37.3,
+    medianListingAgeDays: 143,
+    newListings30dPct: 17,
+    entryBarrier: "low" as const,
+  };
+
+  it("übernimmt den gemessenen Wert unvermischt", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "etsy", priority: 14, confidence: 0.84, payload: { competition: measuredCompetition }, synthetic: false }),
+        provider({ id: "amazon", priority: 8, confidence: 0.9, payload: { competition: mockCompetition }, synthetic: true }),
+      ],
+    });
+
+    assert.equal(signals.competition?.listingCount, 243);
+    // 143 gemessen gegen 545 erfunden – gemischt käme eine Zahl heraus,
+    // die keine Quelle je gesehen hat.
+    assert.equal(signals.competition?.medianListingAgeDays, 143);
+    assert.equal(signals.competition?.entryBarrier, "low");
+  });
+
+  it("lässt ein Feld lieber leer, als es aus dem Mock zu füllen", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "etsy", priority: 14, confidence: 0.84, payload: { competition: measuredCompetition }, synthetic: false }),
+        provider({ id: "amazon", priority: 8, confidence: 0.9, payload: { competition: mockCompetition }, synthetic: true }),
+      ],
+    });
+
+    // Eine Lücke ist ehrlich, ein erfundener Wert eine Falschaussage. Das
+    // Scoring leitet die Sättigung aus der Listing-Zahl ab.
+    assert.equal(signals.competition?.saturationIndex, undefined);
+    assert.equal(signals.competition?.activeSellers, undefined);
+  });
+
+  it("nennt in der Herkunft nur die beteiligten Quellen", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "etsy", priority: 14, confidence: 0.84, payload: { competition: measuredCompetition }, synthetic: false }),
+        provider({ id: "ebay", priority: 12, confidence: 0.86, payload: { competition: measuredCompetition }, synthetic: false }),
+        provider({ id: "amazon", priority: 8, confidence: 0.9, payload: { competition: mockCompetition }, synthetic: true }),
+      ],
+    });
+
+    assert.deepEqual(signals.provenance?.competition?.sources, ["etsy", "ebay"]);
+    assert.equal(signals.provenance?.competition?.syntheticShare, 0);
+  });
+
+  it("behält den Mock, wo keine echte Quelle antwortet", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({
+          id: "google-trends",
+          priority: 20,
+          confidence: 0.9,
+          capabilities: ["demand"],
+          payload: { demand: demandA },
+          synthetic: false,
+        }),
+        provider({
+          id: "reddit",
+          priority: 18,
+          confidence: 0.8,
+          capabilities: ["audience"],
+          payload: {
+            audience: { segments: [], motives: [], giftPotential: 70, emotionalIntensity: 65 },
+          },
+          synthetic: true,
+        }),
+      ],
+    });
+
+    // Die Verdrängung gilt je Signal, nicht je Lauf: Eine echte Nachfrage
+    // darf eine synthetische Zielgruppe nicht mit hinauswerfen.
+    assert.equal(signals.provenance?.demand?.syntheticShare, 0);
+    assert.equal(signals.audience?.giftPotential, 70);
+    assert.equal(signals.provenance?.audience?.syntheticShare, 1);
+  });
+
+  it("verdrängt auch dann, wenn der Mock schwerer wiegt", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "amazon", priority: 30, confidence: 1, payload: { competition: mockCompetition }, synthetic: true }),
+        provider({ id: "etsy", priority: 5, confidence: 0.5, payload: { competition: measuredCompetition }, synthetic: false }),
+      ],
+    });
+
+    // Gewicht entscheidet unter Gleichartigen. Gemessen schlägt erfunden
+    // unabhängig davon.
+    assert.equal(signals.competition?.listingCount, 243);
+    assert.deepEqual(signals.provenance?.competition?.sources, ["etsy"]);
   });
 });
