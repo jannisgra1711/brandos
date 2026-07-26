@@ -98,6 +98,80 @@ describe("generateIdeas", () => {
     }
   });
 
+  it("formuliert Titel nach der Strategie, nicht nach einer Schablone", () => {
+    // Dieser Markt erfüllt mehrere Differenzierungsbedingungen gleichzeitig:
+    // Geschenkpotenzial, Sättigung, dominante Farbwelt, Preisspreizung.
+    const titles = generateIdeas(signals, score, { count: 4 }).map((i) => i.title);
+
+    assert.equal(new Set(titles).size, titles.length, "Titel wiederholen sich");
+    // Vier Ideen sollen als vier verschiedene Spielzüge lesbar sein. Bei einer
+    // festen Schablone hätten alle denselben Satzbau.
+    const shapes = new Set(
+      titles.map((t) =>
+        /statt/.test(t)
+          ? "segment"
+          : /Premium/.test(t)
+            ? "premium"
+            : /Farbwelt/.test(t)
+              ? "design"
+              : /Namen/.test(t)
+                ? "personalisiert"
+                : /Set/.test(t)
+                  ? "bundle"
+                  : /Edition/.test(t)
+                    ? "saison"
+                    : "sonstige",
+      ),
+    );
+    assert.ok(shapes.size >= 2, `nur eine Titelform: ${titles.join(" | ")}`);
+  });
+
+  it("verkettet mehrwortige Nischen nicht mit Bindestrich", () => {
+    // "Emaille Tasse-Hoodie" ist falsches Deutsch – bei mehrwortigen
+    // Suchbegriffen braucht es eine Präposition.
+    const mehrwortig = { ...signals, query: { term: "Emaille Tasse", market: "DE" } };
+    const ideen = generateIdeas(mehrwortig, score, { count: 4 });
+
+    for (const idea of ideen) {
+      assert.ok(
+        !/Emaille Tasse-[A-ZÄÖÜ]/.test(idea.title),
+        `Bindestrich nach mehrwortiger Nische: ${idea.title}`,
+      );
+    }
+  });
+
+  it("verdoppelt die Produktart nicht, wenn die Nische sie schon nennt", () => {
+    const mitTasse = {
+      ...signals,
+      query: { term: "Emaille Tasse", market: "DE" },
+      productTypes: [{ type: "Tasse", share: 1, medianPrice: 19, growth90d: 0.1 }],
+    };
+
+    for (const idea of generateIdeas(mitTasse, score, { count: 2 })) {
+      assert.ok(!/Tasse-Tasse|Tasse zum Thema Emaille Tasse/.test(idea.title), idea.title);
+      assert.match(idea.title, /Emaille Tasse/);
+    }
+  });
+
+  it("verkettet einwortige Nischen weiterhin kompakt", () => {
+    const einwortig = { ...signals, query: { term: "Dackel", market: "DE" } };
+    const titles = generateIdeas(einwortig, score, { count: 4 }).map((i) => i.title);
+
+    assert.ok(
+      titles.some((t) => /Dackel-[A-ZÄÖÜ]/.test(t)),
+      `keine kompakte Form: ${titles.join(" | ")}`,
+    );
+  });
+
+  it("lässt deutsche Substantive in Titeln großgeschrieben", () => {
+    for (const idea of generateIdeas(signals, score, { count: 4 })) {
+      assert.ok(
+        !/emaille-tasse|t-shirt für/.test(idea.title),
+        `kleingeschrieben: ${idea.title}`,
+      );
+    }
+  });
+
   it("sortiert nach Potenzial, damit die stärkste Idee zuerst steht", () => {
     const potentials = generateIdeas(signals, score, { count: 4 }).map((i) => i.potential);
     const sorted = [...potentials].sort((a, b) => b - a);

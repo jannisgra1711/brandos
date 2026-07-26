@@ -297,6 +297,229 @@ describe("heuristicAnalyst – fehlende Signalfelder", () => {
   });
 });
 
+/**
+ * Verknüpfte Erkenntnisse sind das, was die Regelauswertung von einer reinen
+ * Kennzahlenwiedergabe unterscheidet: Sie sagen etwas, das in keinem einzelnen
+ * Signal steht. Entsprechend streng ist die Bedingung – fehlt eines der beiden
+ * Signale, muss die Aussage ausbleiben.
+ */
+describe("heuristicAnalyst – verknüpfte Erkenntnisse", () => {
+  const keyword = (term: string, growth: number, rising: boolean) => ({
+    term,
+    volumeIndex: 40,
+    growth90d: growth,
+    competition: 30,
+    rising,
+  });
+
+  it("erkennt eine Verschiebung ins Untersegment statt eines Rückgangs", async () => {
+    const result = await heuristicAnalyst.interpret({
+      signals: signals({
+        demand: demand({ growth90d: -0.2, growth12m: -0.25, direction: "declining" }),
+        keywords: [
+          keyword("Emaille Tasse Camping", 0.8, true),
+          keyword("Emaille Tasse personalisiert", 0.6, true),
+        ],
+      }),
+      score: score(),
+    });
+
+    const shift = result.insights.find((i) => /verschiebt sich/.test(i.title));
+    assert.ok(shift, "die Verschiebung muss benannt werden");
+    assert.match(shift.detail, /Untersegment/);
+  });
+
+  it("schweigt, wenn der Markt ohnehin wächst", async () => {
+    const result = await heuristicAnalyst.interpret({
+      signals: signals({
+        demand: demand({ direction: "rising" }),
+        keywords: [keyword("a b", 0.8, true), keyword("c d", 0.6, true)],
+      }),
+      score: score(),
+    });
+
+    assert.ok(!result.insights.some((i) => /verschiebt sich/.test(i.title)));
+  });
+
+  it("schweigt bei nur einem aufsteigenden Nebenbegriff", async () => {
+    const result = await heuristicAnalyst.interpret({
+      signals: signals({
+        demand: demand({ direction: "declining" }),
+        keywords: [keyword("einzeln", 0.8, true)],
+      }),
+      score: score(),
+    });
+
+    // Ein einzelner Begriff trägt die Aussage nicht.
+    assert.ok(!result.insights.some((i) => /verschiebt sich/.test(i.title)));
+  });
+
+  it("verbindet hohe Sättigung mit jungem Bestand", async () => {
+    const result = await heuristicAnalyst.interpret({
+      signals: signals({
+        competition: competition({ saturationIndex: 78, medianListingAgeDays: 210 }),
+      }),
+      score: score(),
+    });
+
+    const insight = result.insights.find((i) => /ohne Vorsprung/.test(i.title));
+    assert.ok(insight, "die Verbindung muss entstehen");
+    // Und darf sich nicht mit der Einzelaussage doppeln.
+    assert.ok(
+      !result.insights.some((i) => /Junges Bestandsangebot/.test(i.title)),
+      "dieselbe Zahl darf nicht zweimal auftauchen",
+    );
+  });
+
+  it("nennt das junge Bestandsangebot weiterhin einzeln, wenn der Markt nicht dicht ist", async () => {
+    const result = await heuristicAnalyst.interpret({
+      signals: signals({
+        competition: competition({ saturationIndex: 40, medianListingAgeDays: 210 }),
+      }),
+      score: score(),
+    });
+
+    assert.ok(result.insights.some((i) => /Junges Bestandsangebot/.test(i.title)));
+    assert.ok(!result.insights.some((i) => /ohne Vorsprung/.test(i.title)));
+  });
+
+  it("erkennt Gedränge im unteren Preisband", async () => {
+    const result = await heuristicAnalyst.interpret({
+      signals: signals({
+        competition: competition({ saturationIndex: 72 }),
+        pricing: {
+          currency: "EUR",
+          min: 8,
+          p25: 11,
+          median: 14,
+          p75: 26,
+          max: 90,
+          avgReviewsPerListing: 12,
+        },
+      }),
+      score: score(),
+    });
+
+    assert.ok(result.insights.some((i) => /unteren Preisband/.test(i.title)));
+  });
+
+  it("schweigt zum Preisband, wenn die Spanne eng ist", async () => {
+    const result = await heuristicAnalyst.interpret({
+      signals: signals({
+        competition: competition({ saturationIndex: 72 }),
+        pricing: {
+          currency: "EUR",
+          min: 12,
+          p25: 14,
+          median: 16,
+          p75: 18,
+          max: 24,
+          avgReviewsPerListing: 12,
+        },
+      }),
+      score: score(),
+    });
+
+    assert.ok(!result.insights.some((i) => /unteren Preisband/.test(i.title)));
+  });
+
+  it("verlangt beide Signale – ohne Wettbewerbsdaten keine Preisband-Aussage", async () => {
+    const result = await heuristicAnalyst.interpret({
+      signals: signals({
+        pricing: {
+          currency: "EUR",
+          min: 8,
+          p25: 11,
+          median: 14,
+          p75: 26,
+          max: 90,
+          avgReviewsPerListing: 12,
+        },
+      }),
+      score: score(),
+    });
+
+    assert.ok(!result.insights.some((i) => /unteren Preisband/.test(i.title)));
+  });
+});
+
+describe("heuristicAnalyst – Deckelung", () => {
+  /** Ein Markt, in dem jeder Signalblock etwas beiträgt. */
+  function richSignals() {
+    return signals({
+      demand: demand({ direction: "declining", growth90d: -0.2, growth12m: 0.3 }),
+      competition: competition({ saturationIndex: 78, medianListingAgeDays: 210 }),
+      pricing: {
+        currency: "EUR",
+        min: 8,
+        p25: 11,
+        median: 14,
+        p75: 26,
+        max: 90,
+        avgReviewsPerListing: 12,
+      },
+      seasonality: {
+        amplitude: 0.5,
+        monthlyIndex: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.5, 1.6],
+        peakMonths: [11, 12],
+        lowMonths: [1],
+        drivers: ["Weihnachten"],
+      },
+      audience: {
+        segments: [{ label: "Sammler", share: 0.4, evidence: "Forenbeiträge" }],
+        motives: [{ label: "Zugehörigkeit", kind: "identity", weight: 0.7 }],
+        giftPotential: 75,
+        emotionalIntensity: 80,
+      },
+      design: {
+        palettes: [{ name: "Erdtöne", colors: ["#8a6", "#c94"], share: 0.5 }],
+        typography: [{ style: "Serif", share: 0.4 }],
+        illustrationStyles: [{ style: "Linienzeichnung", share: 0.3 }],
+        motifs: [{ motif: "Berge", frequency: 0.3 }],
+        observations: [],
+      },
+      keywords: [
+        { term: "a b", volumeIndex: 40, growth90d: 0.8, competition: 30, rising: true },
+        { term: "c d", volumeIndex: 35, growth90d: 0.6, competition: 25, rising: true },
+      ],
+    });
+  }
+
+  it("gibt höchstens acht Erkenntnisse aus", async () => {
+    const result = await heuristicAnalyst.interpret({
+      signals: richSignals(),
+      score: score(),
+    });
+    assert.ok(result.insights.length <= 8, `erhalten: ${result.insights.length}`);
+  });
+
+  it("behält die Warnung zur Datengrundlage auch bei voller Liste", async () => {
+    const rich = richSignals();
+    const result = await heuristicAnalyst.interpret({
+      // Dünne Konfidenz trotz vieler Signale – etwa bei überwiegend
+      // synthetischen Quellen. Vorher fiel die Warnung hier heraus.
+      signals: { ...rich, dataQuality: { ...QUALITY, confidence: 0.4, syntheticShare: 0.9 } },
+      score: score(),
+    });
+
+    assert.ok(
+      result.insights.some((i) => /Eingeschränkte Datengrundlage/.test(i.title)),
+      `Warnung fehlt: ${result.insights.map((i) => i.title).join(", ")}`,
+    );
+  });
+
+  it("stellt die verknüpften Erkenntnisse voran", async () => {
+    const result = await heuristicAnalyst.interpret({
+      signals: richSignals(),
+      score: score(),
+    });
+
+    // Sie tragen mehr als die Einzelbetrachtungen und dürfen nicht als Erste
+    // abgeschnitten werden.
+    assert.match(result.insights[0]?.title ?? "", /verschiebt sich|ohne Vorsprung|Preisband/);
+  });
+});
+
 describe("heuristicAnalyst – Urteil und Warnungen", () => {
   const thresholds: [number, RegExp][] = [
     [82, /Klare Chance/],

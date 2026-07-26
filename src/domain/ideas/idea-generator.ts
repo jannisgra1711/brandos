@@ -20,43 +20,100 @@ export interface IdeaOptions {
   count?: number;
 }
 
+/**
+ * Bausteine für den Titel einer Idee.
+ *
+ * Der Titel folgt der *Strategie*, nicht einer festen Schablone: Eine
+ * Saison-Edition heißt anders als ein Untersegment-Angebot. Vier Ideen
+ * untereinander sollen als vier verschiedene Spielzüge lesbar sein, nicht als
+ * vier Instanzen desselben Satzbaus.
+ */
+interface TitleParts {
+  niche: string;
+  productType: string;
+  audience: string;
+}
+
+/**
+ * Nische und Produktart zu einer Nominalphrase verbinden.
+ *
+ * Eine Bindestrich-Verkettung trägt im Deutschen nur bei einwortigen Nischen:
+ * „Dackel-Poster" geht, „Emaille Tasse-Hoodie" ist falsch. Und benennt die
+ * Nische die Produktart bereits, verdoppelt die Verkettung sie zu
+ * „Emaille Tasse-Tasse". Beide Fälle treten mit echten Suchbegriffen sofort
+ * auf – deshalb drei Formen statt einer.
+ */
+function productPhrase(niche: string, productType: string): string {
+  const words = niche.trim().split(/\s+/);
+  const nicheWords = new Set(words.map((w) => w.toLowerCase()));
+
+  // Die Nische nennt das Produkt schon – eine Ergänzung wäre eine Doppelung.
+  if (productType.split(/\s+/).every((w) => nicheWords.has(w.toLowerCase()))) {
+    return niche;
+  }
+
+  if (words.length === 1) return `${niche}-${productType}`;
+  return `${productType} zum Thema ${niche}`;
+}
+
+/** Wie `productPhrase`, aber für Zusätze wie „Set" oder „Edition". */
+function nichePhrase(niche: string, suffix: string): string {
+  const words = niche.trim().split(/\s+/);
+  if (words.length === 1) return `${niche}-${suffix}`;
+  return `${suffix} zum Thema ${niche}`;
+}
+
 /** Differenzierungsstrategien, geordnet nach Aufwand. */
 const DIFFERENTIATORS = [
   {
     label: "Personalisierung mit Namen oder Daten",
     condition: (s: MarketSignals) => (s.audience?.giftPotential ?? 0) > 60,
     rationale: "Geschenkkäufer zahlen für Personalisierung messbar mehr.",
+    title: ({ niche, productType, audience }: TitleParts) =>
+      `${productPhrase(niche, productType)} mit Namen – für ${audience}`,
   },
   {
     label: "Untersegment statt Oberbegriff",
     condition: (s: MarketSignals) => (s.competition?.saturationIndex ?? 0) > 65,
     rationale: "Der Oberbegriff ist besetzt – Spezialisierung umgeht den Wettbewerb.",
+    title: ({ niche, productType, audience }: TitleParts) =>
+      `${productType} nur für ${audience} statt "${niche}" allgemein`,
   },
   {
     label: "Gegenläufige Designrichtung",
     condition: (s: MarketSignals) => (s.design?.palettes[0]?.share ?? 0) > 0.4,
     rationale: "Eine Farbwelt dominiert – Abweichung erzeugt Aufmerksamkeit im Suchergebnis.",
+    title: ({ niche, productType }: TitleParts) =>
+      `${productPhrase(niche, productType)}, bewusst gegen die dominante Farbwelt`,
   },
   {
     label: "Set- oder Bundle-Angebot",
     condition: (s: MarketSignals) => s.productTypes.length >= 4,
     rationale: "Mehrere etablierte Produktarten lassen sich zu höherem Bonwert bündeln.",
+    title: ({ niche, productType, audience }: TitleParts) =>
+      `${nichePhrase(niche, "Set")} für ${audience} – ${productType} als Kern`,
   },
   {
     label: "Premium-Materialversion",
     condition: (s: MarketSignals) =>
       (s.pricing?.p75 ?? 0) > (s.pricing?.median ?? 1) * 1.35,
     rationale: "Das obere Preisdrittel ist deutlich abgesetzt – Zahlungsbereitschaft vorhanden.",
+    title: ({ niche, productType, audience }: TitleParts) =>
+      `${productPhrase(niche, productType)} in Premium-Ausführung für ${audience}`,
   },
   {
     label: "Anlassbezogene Edition",
     condition: (s: MarketSignals) => (s.seasonality?.amplitude ?? 0) > 0.25,
     rationale: "Ausgeprägte Saison – eine Edition zum Peak trifft die Kaufabsicht.",
+    title: ({ niche, productType, audience }: TitleParts) =>
+      `${productPhrase(niche, productType)} als Saison-Edition für ${audience}`,
   },
   {
     label: "Community-Sprache im Wording",
     condition: (s: MarketSignals) => (s.audience?.emotionalIntensity ?? 0) > 70,
     rationale: "Hohe Identifikation – Insider-Wording wirkt stärker als generische Aussagen.",
+    title: ({ niche, productType, audience }: TitleParts) =>
+      `${productPhrase(niche, productType)} in der Sprache der ${audience}`,
   },
 ];
 
@@ -115,7 +172,13 @@ export function generateIdeas(
 
     ideas.push({
       id: `idea-${i + 1}`,
-      title: buildTitle(niche, productType.type, audienceLabel, differentiator.label),
+      title: differentiator.title({
+        niche,
+        productType: productType.type,
+        // Lange Segmentbezeichnungen tragen oft einen Zusatz in Klammern oder
+        // nach dem Komma – im Titel stört er nur.
+        audience: audienceLabel.split(/[,(]/)[0]?.trim() || audienceLabel,
+      }),
       composition: {
         niche,
         productType: productType.type,
@@ -137,17 +200,6 @@ export function generateIdeas(
   }
 
   return ideas.sort((a, b) => b.potential - a.potential);
-}
-
-function buildTitle(
-  niche: string,
-  productType: string,
-  audience: string,
-  differentiator: string,
-): string {
-  const audienceShort = audience.split(/[,(]/)[0]?.trim() ?? audience;
-  // Kein toLowerCase: im Deutschen bleiben Substantive großgeschrieben.
-  return `${niche}-${productType} für ${audienceShort}: ${differentiator}`;
 }
 
 function buildRisks(signals: MarketSignals, differentiator: string): string[] {

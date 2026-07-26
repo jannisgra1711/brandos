@@ -153,12 +153,21 @@ interface Analyst {
 }
 ```
 
-Zwei Implementierungen: `anthropicAnalyst` (Structured Outputs, Streaming) und
-`heuristicAnalyst` (regelbasiert). Die Heuristik ist kein Notnagel, sondern die
-Untergrenze der Produktqualität — ohne API-Key, bei Modellausfall und in Tests
-liefert BrandOS dieselbe Ergebnisstruktur, nur konservativer formuliert. Der
-tatsächlich verwendete Analyst wird im Ergebnis über `producedBy.degraded`
-ausgewiesen, nicht verborgen.
+Zwei Implementierungen: `heuristicAnalyst` (regelbasiert) und `anthropicAnalyst`
+(Structured Outputs, Streaming). Der tatsächlich verwendete Analyst wird im
+Ergebnis über `producedBy.degraded` ausgewiesen, nicht verborgen.
+
+**Voreingestellt ist die Heuristik**, und das ist eine Entscheidung, kein Mangel.
+Der Score entsteht ohnehin ohne Modell — ein Modell erklärt ihn, es berechnet ihn
+nicht. Und solange ein erheblicher Teil der Signale synthetisch ist, würde ein
+Modell diese Daten lediglich eloquenter deuten: flüssige Sätze über eine
+Zielgruppensegmentierung, die niemand gemessen hat. Die Regelauswertung klingt
+nicht klüger, als die Datenlage hergibt, und weist den synthetischen Anteil im
+Urteil aus. Bei dünner Datenlage ist die konservativere Stimme die richtigere.
+
+Der modellgestützte Pfad bleibt nachrüstbar: `ANTHROPIC_API_KEY` setzen,
+`BRANDOS_AI_MODE=auto`. Sinnvoll wird das, sobald die Signale überwiegend aus
+echten Quellen stammen.
 
 ### `AnalysisRepository` — Persistenz
 
@@ -214,9 +223,9 @@ Alle Variablen sind optional. Siehe [`.env.example`](.env.example).
 
 | Variable | Wirkung |
 |---|---|
-| `ANTHROPIC_API_KEY` | Aktiviert die modellgestützte Interpretation |
+| `BRANDOS_AI_MODE` | `heuristic` (Voreinstellung) \| `auto` \| `anthropic` |
+| `ANTHROPIC_API_KEY` | Nötig, sobald `BRANDOS_AI_MODE` nicht `heuristic` ist |
 | `BRANDOS_AI_MODEL` | Modell-ID, Standard `claude-opus-5` |
-| `BRANDOS_AI_MODE` | `auto` \| `anthropic` \| `heuristic` |
 | `SERPAPI_KEY` | Aktiviert Google Trends (Nachfrage) und eBay (Angebotsseite) |
 | `ETSY_API_KEY`, `PINTEREST_ACCESS_TOKEN`, … | Aktivieren die jeweilige Live-Quelle |
 | `BRANDOS_PROVIDER_TIMEOUT_MS` | Timeout je Quelle, Standard 8000 |

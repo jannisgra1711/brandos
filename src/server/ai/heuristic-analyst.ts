@@ -95,9 +95,106 @@ function buildVerdict(signals: MarketSignals, score: OpportunityScore): string {
   return `Zurückhaltung angeraten: Die Rahmenbedingungen sprechen aktuell gegen einen Einstieg.${caveat}`;
 }
 
+/** Höchstzahl der ausgegebenen Erkenntnisse – eine mehr überfordert die Seite. */
+const MAX_INSIGHTS = 8;
+
+/**
+ * Erkenntnisse aus der Verknüpfung *zweier* Signale.
+ *
+ * Die blockweisen Erkenntnissen weiter unten betrachten je einen Signaltyp
+ * für sich. Das Aussagekräftigste liegt aber oft dazwischen: eine fallende
+ * Nachfrage bedeutet etwas anderes, wenn gleichzeitig Nebenbegriffe wachsen.
+ *
+ * Jede Regel verlangt beide Signale. Fehlt eines, schweigt sie – so entstehen
+ * auf dünner Datenlage keine Aussagen, die die Daten nicht tragen.
+ */
+function buildSynthesis(signals: MarketSignals, confidence: number): Insight[] {
+  const found: Insight[] = [];
+  const { demand, competition, pricing, seasonality } = signals;
+
+  // --- Verschiebung statt Rückgang -----------------------------------------
+  const rising = signals.keywords.filter((k) => k.rising);
+  if (demand && demand.direction !== "rising" && rising.length >= 2) {
+    found.push({
+      kind: "pattern",
+      title: "Der Markt verschiebt sich, statt zu schrumpfen",
+      detail: `Der Oberbegriff entwickelt sich ${describeDirection(demand.direction)} (${dePercent(demand.growth90d)} in 90 Tagen), gleichzeitig wachsen ${rising.length} Nebenbegriffe überdurchschnittlich. Das spricht für eine Verlagerung in Untersegmente, nicht für einen sterbenden Markt – der Einstieg gehört dann dorthin, nicht auf den Oberbegriff.`,
+      confidence: round(confidence * 0.85, 2),
+      evidence: [
+        `Oberbegriff: ${dePercent(demand.growth90d)} in 90 Tagen`,
+        ...rising.slice(0, 3).map((k) => `"${k.term}": ${dePercent(k.growth90d)}`),
+      ],
+    });
+  }
+
+  // --- Dicht besetzt, aber jung --------------------------------------------
+  if (
+    competition?.saturationIndex !== undefined &&
+    competition.medianListingAgeDays !== undefined &&
+    competition.saturationIndex > 65 &&
+    competition.medianListingAgeDays < 400
+  ) {
+    found.push({
+      kind: "opportunity",
+      title: "Dicht besetzt, aber ohne Vorsprung",
+      detail: `Bei ${de(competition.saturationIndex)}/100 Sättigung ist das Medianlisting erst ${Math.round(competition.medianListingAgeDays)} Tage alt. Der Markt hat sich kürzlich gefüllt – die etablierten Anbieter haben noch keinen Bewertungsvorsprung, den man nicht einholen könnte.`,
+      confidence: round(confidence * 0.85, 2),
+      evidence: [
+        `Sättigung: ${de(competition.saturationIndex)}/100`,
+        `Medianalter: ${Math.round(competition.medianListingAgeDays)} Tage`,
+      ],
+    });
+  }
+
+  // --- Gedränge unten, Luft oben -------------------------------------------
+  if (
+    pricing &&
+    competition?.saturationIndex !== undefined &&
+    competition.saturationIndex > 60 &&
+    pricing.p75 > pricing.median * 1.4
+  ) {
+    found.push({
+      kind: "opportunity",
+      title: "Wettbewerb ballt sich im unteren Preisband",
+      detail: `Der Median liegt bei ${de(pricing.median, 2)} ${pricing.currency}, das obere Viertel beginnt erst bei ${de(pricing.p75, 2)} ${pricing.currency}. Bei ${de(competition.saturationIndex)}/100 Sättigung drängt sich der Wettbewerb unten – im Premium-Band ist mehr Platz als die Gesamtdichte vermuten lässt.`,
+      confidence: round(confidence * 0.8, 2),
+      evidence: [
+        `Median: ${de(pricing.median, 2)} ${pricing.currency}`,
+        `Oberes Viertel ab: ${de(pricing.p75, 2)} ${pricing.currency}`,
+        `Sättigung: ${de(competition.saturationIndex)}/100`,
+      ],
+    });
+  }
+
+  // --- Timing trifft Rückenwind --------------------------------------------
+  if (demand?.direction === "rising" && seasonality && seasonality.amplitude >= 0.25) {
+    const lead = monthsUntilNextPeak(new Date().getMonth() + 1, seasonality.peakMonths);
+    if (lead >= 2 && lead <= 4) {
+      found.push({
+        kind: "timing",
+        title: "Vorbereitungsfenster bei steigender Nachfrage",
+        detail: `Zwei Dinge treffen zusammen: Die Nachfrage wächst ohnehin (${dePercent(demand.growth90d)} in 90 Tagen), und bis zum Saisonpeak sind es ${lead} Monate. Das ist der seltene Fall, in dem Trend und Timing in dieselbe Richtung zeigen.`,
+        confidence: round(confidence * 0.85, 2),
+        evidence: [
+          `Wachstum: ${dePercent(demand.growth90d)} in 90 Tagen`,
+          `Peak in ${lead} Monaten`,
+          `Saisonamplitude: ${de(seasonality.amplitude * 100)} %`,
+        ],
+      });
+    }
+  }
+
+  return found;
+}
+
 function buildInsights(signals: MarketSignals): Insight[] {
   const insights: Insight[] = [];
   const confidence = signals.dataQuality.confidence;
+
+  // Verknüpfte Aussagen zuerst: sie tragen mehr als die Einzelbetrachtungen,
+  // aus denen sie entstehen, und dürfen deshalb nicht als Erste der Deckelung
+  // zum Opfer fallen.
+  insights.push(...buildSynthesis(signals, confidence));
 
   // --- Nachfrage & Trend ----------------------------------------------------
   if (signals.demand) {
@@ -186,7 +283,11 @@ function buildInsights(signals: MarketSignals): Insight[] {
       ],
     });
 
-    if (c.medianListingAgeDays !== undefined && c.medianListingAgeDays < 400) {
+    // Bei hoher Sättigung sagt die Verknüpfung oben dasselbe und mehr –
+    // zweimal dieselbe Zahl in zwei Erkenntnissen liest sich wie ein Fehler.
+    const coveredBySynthesis = (c.saturationIndex ?? 0) > 65;
+
+    if (!coveredBySynthesis && c.medianListingAgeDays !== undefined && c.medianListingAgeDays < 400) {
       insights.push({
         kind: "pattern",
         title: "Junges Bestandsangebot",
@@ -278,20 +379,26 @@ function buildInsights(signals: MarketSignals): Insight[] {
   }
 
   // --- Datenqualität -------------------------------------------------------
-  if (signals.dataQuality.confidence < 0.55) {
-    insights.push({
-      kind: "risk",
-      title: "Eingeschränkte Datengrundlage",
-      detail: `Nur ${signals.dataQuality.sourceCount} Quellen bei ${de(signals.dataQuality.coverage * 100)} % Abdeckung. Der Score ist eine Richtung, keine Entscheidungsgrundlage.`,
-      confidence: 0.9,
-      evidence: [
-        `Quellen: ${signals.dataQuality.sourceCount}`,
-        `Synthetischer Anteil: ${de(signals.dataQuality.syntheticShare * 100)} %`,
-      ],
-    });
-  }
+  // Bewusst außerhalb der Liste gehalten: Diese Warnung relativiert alles
+  // andere und darf der Deckelung nicht zum Opfer fallen. Zuvor wurde sie als
+  // letzte angehängt und bei einem Markt mit allen Signalblöcken abgeschnitten
+  // – ausgerechnet dann, wenn sie gilt.
+  const warning: Insight | undefined =
+    signals.dataQuality.confidence < 0.55
+      ? {
+          kind: "risk",
+          title: "Eingeschränkte Datengrundlage",
+          detail: `Nur ${signals.dataQuality.sourceCount} Quellen bei ${de(signals.dataQuality.coverage * 100)} % Abdeckung. Der Score ist eine Richtung, keine Entscheidungsgrundlage.`,
+          confidence: 0.9,
+          evidence: [
+            `Quellen: ${signals.dataQuality.sourceCount}`,
+            `Synthetischer Anteil: ${de(signals.dataQuality.syntheticShare * 100)} %`,
+          ],
+        }
+      : undefined;
 
-  return insights.slice(0, 8);
+  if (!warning) return insights.slice(0, MAX_INSIGHTS);
+  return [...insights.slice(0, MAX_INSIGHTS - 1), warning];
 }
 
 function buildActions(signals: MarketSignals, score: OpportunityScore): string[] {
