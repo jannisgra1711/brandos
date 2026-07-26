@@ -162,6 +162,20 @@ describe("JsonAnalysisRepository – Index-Konsistenz", () => {
     assert.equal(await repo.count(), 2);
   });
 
+  it("rettet die Merkungen über den Wiederaufbau", async () => {
+    // Die Merkung steht nur im Index. Ein Wiederaufbau, der allein die
+    // Analysedateien liest, setzte sie zurück – der Nutzer verlöre seine
+    // Auswahl, obwohl er nur einen fehlenden Eintrag nachtragen wollte.
+    await repo.save(analysis({ id: "gemerkt" }));
+    await repo.save(analysis({ id: "nebenbei" }));
+    await repo.setSaved("gemerkt", true);
+
+    await repo.rebuildIndex();
+
+    assert.equal((await repo.findSummaryById("gemerkt"))?.saved, true);
+    assert.equal((await repo.findSummaryById("nebenbei"))?.saved, false);
+  });
+
   it("überspringt beschädigte Analysedateien beim Wiederaufbau", async () => {
     await repo.save(analysis({ id: "heil" }));
     await writeFile(path.join(dir, "analyses", "kaputt.json"), "{kein json", "utf8");

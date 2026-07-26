@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --conditions=react-server --import ./scripts/register-alias.mjs --test \"src/**/*.test.ts\""
+    "test": "node --conditions=react-server --import ./scripts/register-alias.mjs --test \"src/**/*.test.ts\"",
+    "rebuild-index": "node --conditions=react-server scripts/rebuild-index.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

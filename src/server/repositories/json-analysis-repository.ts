@@ -149,17 +149,29 @@ export class JsonAnalysisRepository implements AnalysisRepository {
     return index.entries.length;
   }
 
-  /** Baut den Index aus den Einzeldateien neu auf. */
+  /**
+   * Baut den Index aus den Einzeldateien neu auf.
+   *
+   * Die Merkung ist der einzige Zustand, der **nur** im Index steht – die
+   * Analysedatei weiß nichts davon. Ein Wiederaufbau aus den Dateien allein
+   * setzte deshalb jede Merkung zurück. Was vom alten Index noch lesbar ist,
+   * wird darum übernommen; ist er ganz verloren, ist auch die Merkung verloren,
+   * und das ist der einzige Fall, in dem das unvermeidlich ist.
+   */
   async rebuildIndex(): Promise<number> {
     return this.enqueue(async () => {
       await mkdir(this.analysesDir, { recursive: true });
+      const previous = await this.readIndex();
+      const saved = new Set(previous.entries.filter((e) => e.saved).map((e) => e.id));
+
       const files = await readdir(this.analysesDir);
       const entries: AnalysisSummary[] = [];
 
       for (const file of files.filter((f) => f.endsWith(".json"))) {
         try {
           const raw = await readFile(path.join(this.analysesDir, file), "utf8");
-          entries.push(toSummary(JSON.parse(raw) as MarketAnalysis));
+          const summary = toSummary(JSON.parse(raw) as MarketAnalysis);
+          entries.push({ ...summary, saved: saved.has(summary.id) });
         } catch {
           this.log.warn("Beschädigte Analysedatei übersprungen", { file });
         }
