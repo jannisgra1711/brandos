@@ -83,7 +83,7 @@ export default async function AnalysisPage({ params }: Props) {
       </Section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <FactorBreakdown score={analysis.score} />
+        <FactorBreakdown score={analysis.score} sources={analysis.signals.sources} />
 
         <div className="space-y-6">
           <Card>

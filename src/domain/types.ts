@@ -67,6 +67,45 @@ export interface SourceContribution {
   message?: string;
 }
 
+/**
+ * Signale, deren Herkunft nachgehalten wird – die Nutzlast-Schlüssel eines
+ * Providers.
+ */
+export const PROVENANCE_KEYS = [
+  "demand",
+  "seasonality",
+  "competition",
+  "pricing",
+  "audience",
+  "design",
+  "keywords",
+  "productTypes",
+] as const;
+
+export type ProvenanceKey = (typeof PROVENANCE_KEYS)[number];
+
+/**
+ * Welche Quellen ein zusammengeführtes Signal getragen haben.
+ *
+ * `sources` in `MarketSignals` sagt, wer *befragt* wurde. Das genügt nicht:
+ * Ein Lauf mit sieben Quellen, von denen fünf synthetisch sind, sagt nichts
+ * darüber, ob ausgerechnet der Nachfragewert echt ist. Der Aggregator weiß
+ * es im Moment der Zusammenführung – ohne diese Notiz geht es verloren, und
+ * ein erfundener Wert steht in der Oberfläche neben einem gemessenen, ohne
+ * unterscheidbar zu sein.
+ */
+export interface SignalProvenance {
+  /** Beitragende Quellen, stärkster Beitrag zuerst. */
+  sources: SourceId[];
+  /**
+   * Anteil synthetischer Beiträge, 0..1 – **gewichtet**, nicht gezählt.
+   * Der Wert entstand als gewichtete Mischung, also muss seine Herkunft
+   * genauso gewichtet sein: Eine schwach gewichtete Mock-Quelle neben einer
+   * starken echten macht das Signal nicht zur Hälfte synthetisch.
+   */
+  syntheticShare: number;
+}
+
 // ---------------------------------------------------------------------------
 // Anfrage
 // ---------------------------------------------------------------------------
@@ -267,6 +306,12 @@ export interface MarketSignals {
   keywords: KeywordSignal[];
   productTypes: ProductTypeSignal[];
   dataQuality: DataQuality;
+  /**
+   * Herkunft je Signal. Optional, weil vor der Einführung gespeicherte
+   * Analysen sie nicht haben – Oberfläche und Scoring müssen ohne auskommen,
+   * statt den Altbestand als synthetisch auszuweisen.
+   */
+  provenance?: Partial<Record<ProvenanceKey, SignalProvenance>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -298,6 +343,20 @@ export interface ScoreFactor {
   rationale: string;
   /** Fehlt die Datengrundlage, wird ein neutraler Wert angenommen. */
   imputed: boolean;
+  /**
+   * Quellen hinter dem Signal, aus dem dieser Faktor entsteht. Leer bei
+   * `imputed` – ein geschätzter Faktor hat keine Quelle, er entstand gerade
+   * mangels einer. Fehlt bei Analysen, die vor der Einführung entstanden.
+   */
+  sources?: SourceId[];
+  /**
+   * Gewichteter Anteil synthetischer Daten in diesem Faktor, 0..1.
+   *
+   * Ohne diese Angabe rendert ein Faktor aus einem Mock identisch zu einem
+   * aus Google Trends: gleicher Balken, gleiche Begründung. Genau das soll
+   * das Produkt nicht tun.
+   */
+  syntheticShare?: number;
 }
 
 export type OpportunityGrade = "A" | "B" | "C" | "D";
@@ -309,6 +368,15 @@ export interface OpportunityScore {
   /** 0..1 – Vertrauen in den Score, abgeleitet aus der Datenqualität. */
   confidence: number;
   factors: ScoreFactor[];
+  /**
+   * Anteil der Score-Gewichtung, der aus synthetischen Quellen stammt, 0..1.
+   *
+   * Nicht dasselbe wie `dataQuality.syntheticShare`: Jener zählt Quellen,
+   * dieser gewichtet sie mit ihrem Einfluss auf die Zahl. Fünf Mocks, die
+   * zusammen ein Zehntel des Scores tragen, sind etwas anderes als einer,
+   * der ein Drittel trägt.
+   */
+  syntheticWeight?: number;
   /** Die stärksten Treiber nach oben. */
   drivers: string[];
   /** Die stärksten Bremsen. */

@@ -42,10 +42,24 @@ export function buildMarketBrief(
   // --- Bewertung ------------------------------------------------------------
   push("## Opportunity Score (bereits berechnet)");
   push(`Gesamt: ${score.value}/100 (Note ${score.grade}), Konfidenz ${de(score.confidence * 100)} %`);
+  if (score.syntheticWeight !== undefined && score.syntheticWeight > 0) {
+    push(
+      `Achtung: ${de(score.syntheticWeight * 100)} % der Score-Gewichtung stammen aus ` +
+        `synthetischen Quellen. Formuliere zu diesen Faktoren keine Aussage, die wie eine ` +
+        `Messung klingt.`,
+    );
+  }
   for (const factor of score.factors) {
+    // Das Modell muss dieselbe Unterscheidung sehen wie der Nutzer, sonst
+    // schreibt es über einen Mock-Wert so selbstbewusst wie über eine Messung.
+    const origin = factor.imputed
+      ? " [geschätzt]"
+      : factor.syntheticShare
+        ? ` [synthetisch zu ${de(factor.syntheticShare * 100)} %]`
+        : "";
     push(
       `- ${factor.label}: ${factor.value}/100 (Gewicht ${de(factor.weight * 100)} %)` +
-        `${factor.imputed ? " [geschätzt]" : ""} – ${factor.rationale}`,
+        `${origin} – ${factor.rationale}`,
     );
   }
   push("");

@@ -175,3 +175,134 @@ describe("Auflösung des nächsten Peak-Monats", () => {
     assert.equal(nextPeakMonth(7, [6, 7]), 7);
   });
 });
+
+/**
+ * Die Herkunft eines Faktors ist der Unterschied zwischen "gemessen" und
+ * "plausibel erzeugt". Ohne sie sieht ein Faktor aus einem Mock exakt aus
+ * wie einer aus Google Trends – gleicher Balken, gleiche Begruendung.
+ */
+describe("scoreOpportunity – Herkunft der Faktoren", () => {
+  const audience = {
+    segments: [],
+    motives: [{ label: "Identitaet", kind: "identity" as const, weight: 1 }],
+    giftPotential: 70,
+    emotionalIntensity: 65,
+  };
+
+  /** Summe der Gewichte der genannten Faktoren – unabhaengig von der Gewichtstabelle. */
+  function weightOf(score: ReturnType<typeof scoreOpportunity>, keys: string[]): number {
+    const sum = score.factors
+      .filter((f) => keys.includes(f.key))
+      .reduce((total, f) => total + f.weight, 0);
+    return Math.round(sum * 1000) / 1000;
+  }
+
+  it("nennt je Faktor die Quellen des zugrunde liegenden Signals", () => {
+    const score = scoreOpportunity(
+      signals({
+        demand: strongDemand,
+        competition: openCompetition,
+        provenance: {
+          demand: { sources: ["google-trends", "tiktok"], syntheticShare: 0 },
+          competition: { sources: ["ebay"], syntheticShare: 0 },
+        },
+      }),
+    );
+
+    const byKey = new Map(score.factors.map((f) => [f.key, f]));
+    // Nachfrage und Trend lesen dasselbe Signal, also dieselbe Herkunft.
+    assert.deepEqual(byKey.get("demand")?.sources, ["google-trends", "tiktok"]);
+    assert.deepEqual(byKey.get("trend")?.sources, ["google-trends", "tiktok"]);
+    assert.deepEqual(byKey.get("competition")?.sources, ["ebay"]);
+  });
+
+  it("gibt einem geschaetzten Faktor keine Quelle", () => {
+    const score = scoreOpportunity(
+      signals({
+        demand: strongDemand,
+        provenance: { demand: { sources: ["google-trends"], syntheticShare: 0 } },
+      }),
+    );
+
+    const gift = score.factors.find((f) => f.key === "giftPotential");
+    assert.equal(gift?.imputed, true);
+    assert.deepEqual(gift?.sources, []);
+    assert.equal(gift?.syntheticShare, undefined);
+  });
+
+  it("gibt auch dann keine Quelle an, wenn das Signal vorlag, der Faktor aber aufgab", () => {
+    const score = scoreOpportunity(
+      signals({
+        // Wettbewerb ist da, aber ohne Alter und Neuzugaenge - marketAge gibt auf.
+        competition: { listingCount: 4200, top10SharePct: 14, entryBarrier: "low" },
+        provenance: { competition: { sources: ["ebay"], syntheticShare: 0 } },
+      }),
+    );
+
+    const byKey = new Map(score.factors.map((f) => [f.key, f]));
+    assert.equal(byKey.get("competition")?.imputed, false);
+    assert.deepEqual(byKey.get("competition")?.sources, ["ebay"]);
+
+    // Derselbe Signalblock, aber dieser Faktor beruht auf nichts.
+    assert.equal(byKey.get("marketAge")?.imputed, true);
+    assert.deepEqual(byKey.get("marketAge")?.sources, []);
+  });
+
+  it("gewichtet den synthetischen Anteil mit dem Einfluss auf den Score", () => {
+    const score = scoreOpportunity(
+      signals({
+        demand: strongDemand,
+        competition: openCompetition,
+        audience,
+        provenance: {
+          demand: { sources: ["google-trends"], syntheticShare: 0 },
+          competition: { sources: ["ebay"], syntheticShare: 0 },
+          audience: { sources: ["reddit"], syntheticShare: 1 },
+        },
+      }),
+    );
+
+    // Genau die beiden Faktoren, die aus `audience` entstehen - nicht
+    // "eine von drei Quellen ist synthetisch".
+    assert.equal(score.syntheticWeight, weightOf(score, ["giftPotential", "emotionalPull"]));
+  });
+
+  it("meldet null, wenn jede beitragende Quelle echt ist", () => {
+    const score = scoreOpportunity(
+      signals({
+        demand: strongDemand,
+        provenance: { demand: { sources: ["google-trends"], syntheticShare: 0 } },
+      }),
+    );
+
+    assert.equal(score.syntheticWeight, 0);
+  });
+
+  it("laesst den Anteil offen, wenn die Signale keine Herkunft mitbringen", () => {
+    const score = scoreOpportunity(signals({ demand: strongDemand, competition: openCompetition }));
+
+    // Eine 0 waere hier die gefaehrlichste Antwort: Sie laese sich als
+    // "nichts davon ist synthetisch", obwohl niemand nachgehalten hat.
+    assert.equal(score.syntheticWeight, undefined);
+    assert.deepEqual(score.factors[0]?.sources, []);
+  });
+
+  it("beruecksichtigt einen teilweise synthetischen Beitrag anteilig", () => {
+    const full = scoreOpportunity(
+      signals({
+        demand: strongDemand,
+        provenance: { demand: { sources: ["tiktok"], syntheticShare: 1 } },
+      }),
+    );
+    const half = scoreOpportunity(
+      signals({
+        demand: strongDemand,
+        provenance: { demand: { sources: ["google-trends", "tiktok"], syntheticShare: 0.5 } },
+      }),
+    );
+
+    assert.ok(half.syntheticWeight !== undefined && full.syntheticWeight !== undefined);
+    assert.ok(half.syntheticWeight < full.syntheticWeight);
+    assert.equal(half.syntheticWeight, Math.round(full.syntheticWeight * 500) / 1000);
+  });
+});

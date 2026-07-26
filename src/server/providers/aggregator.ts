@@ -1,6 +1,6 @@
 import "server-only";
 import { clamp, mean, round } from "@/domain/math";
-import { CAPABILITIES } from "@/domain/types";
+import { CAPABILITIES, PROVENANCE_KEYS } from "@/domain/types";
 import type {
   Capability,
   DataQuality,
@@ -8,6 +8,8 @@ import type {
   MarketQuery,
   MarketSignals,
   ProductTypeSignal,
+  ProvenanceKey,
+  SignalProvenance,
   SourceContribution,
   SourceStatus,
 } from "@/domain/types";
@@ -100,6 +102,7 @@ export async function collectSignals(
     keywords: mergeKeywords(contributions),
     productTypes: mergeProductTypes(contributions),
     dataQuality: assessQuality(sources, contributions),
+    provenance: buildProvenance(contributions),
   };
 
   log.info("Signale gesammelt", {
@@ -223,6 +226,62 @@ function blend(entries: { value: number; weight: number }[]): number {
   if (totalWeight <= 0) return entries[0]?.value ?? 0;
   return entries.reduce((sum, e) => sum + e.value * e.weight, 0) / totalWeight;
 }
+
+// ---------------------------------------------------------------------------
+// Herkunft
+// ---------------------------------------------------------------------------
+
+/**
+ * Ob ein Beitrag zu einem Signal tatsächlich etwas beigesteuert hat.
+ *
+ * Eine leere Liste ist kein Beitrag: Meldet eine Quelle `keywords: []`,
+ * hat sie zum Ergebnis nichts gesagt und darf die Herkunft nicht verwässern.
+ */
+function contributesTo(contribution: Contribution, key: ProvenanceKey): boolean {
+  const value = contribution.result.payload[key];
+  if (value === undefined) return false;
+  return Array.isArray(value) ? value.length > 0 : true;
+}
+
+function provenanceFor(
+  contributions: Contribution[],
+  key: ProvenanceKey,
+): SignalProvenance | undefined {
+  const entries = contributions
+    .filter((c) => contributesTo(c, key))
+    .sort((a, b) => b.weight - a.weight);
+
+  if (entries.length === 0) return undefined;
+
+  const totalWeight = entries.reduce((sum, e) => sum + e.weight, 0);
+  const synthetic = entries.filter((e) => e.result.synthetic);
+
+  // Fällt das Gesamtgewicht auf null – jede beitragende Quelle meldet
+  // Konfidenz 0 –, bleibt nur das Abzählen. Ein gewichteter Anteil wäre
+  // hier eine Division durch null, kein Erkenntnisgewinn.
+  const share =
+    totalWeight > 0
+      ? synthetic.reduce((sum, e) => sum + e.weight, 0) / totalWeight
+      : synthetic.length / entries.length;
+
+  return {
+    sources: entries.map((e) => e.provider.id),
+    syntheticShare: round(share, 2),
+  };
+}
+
+function buildProvenance(contributions: Contribution[]): MarketSignals["provenance"] {
+  const provenance: Partial<Record<ProvenanceKey, SignalProvenance>> = {};
+
+  for (const key of PROVENANCE_KEYS) {
+    const entry = provenanceFor(contributions, key);
+    if (entry) provenance[key] = entry;
+  }
+
+  return provenance;
+}
+
+// ---------------------------------------------------------------------------
 
 function mergeDemand(contributions: Contribution[]): MarketSignals["demand"] {
   const entries = withPayload(contributions, "demand");

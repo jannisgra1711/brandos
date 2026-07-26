@@ -543,3 +543,131 @@ describe("collectSignals – Fähigkeitsfilter", () => {
     assert.equal(signals.design, undefined);
   });
 });
+
+/**
+ * Die Herkunft eines Signals ist die Grundlage dafür, dass ein erfundener
+ * Wert in der Oberfläche nicht wie ein gemessener aussieht. `sources` allein
+ * genügt dafür nicht: Es sagt, wer befragt wurde, nicht wer den einzelnen
+ * Wert getragen hat.
+ */
+describe("collectSignals – Herkunft der Signale", () => {
+  it("hält fest, welche Quellen ein Signal getragen haben", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "tiktok", priority: 6, confidence: 0.5, payload: { demand: demandB } }),
+        provider({ id: "google-trends", priority: 20, confidence: 0.9, payload: { demand: demandA } }),
+      ],
+    });
+
+    // Stärkster Beitrag zuerst – dieselbe Rangfolge, die den Wert bestimmt hat.
+    assert.deepEqual(signals.provenance?.demand?.sources, ["google-trends", "tiktok"]);
+  });
+
+  it("nennt kein Signal, das keine Quelle getragen hat", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [provider({ id: "google-trends", priority: 20, confidence: 0.9, payload: { demand: demandA } })],
+    });
+
+    assert.ok(signals.provenance?.demand);
+    assert.equal(signals.provenance?.competition, undefined);
+    assert.equal(signals.provenance?.audience, undefined);
+  });
+
+  it("zählt eine gescheiterte Quelle nicht als Beitrag", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "google-trends", priority: 20, confidence: 0.9, payload: { demand: demandA } }),
+        failingProvider("etsy"),
+      ],
+    });
+
+    assert.deepEqual(signals.provenance?.demand?.sources, ["google-trends"]);
+  });
+
+  it("wertet eine leere Liste nicht als Beitrag", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({
+          id: "reddit",
+          priority: 18,
+          confidence: 0.7,
+          capabilities: ["keywords"],
+          // Die Quelle hat geantwortet, aber zum Ergebnis nichts gesagt.
+          payload: { keywords: [] },
+        }),
+      ],
+    });
+
+    assert.equal(signals.provenance?.keywords, undefined);
+  });
+
+  it("weist eine rein echte Quelle als nicht synthetisch aus", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "google-trends", priority: 20, confidence: 0.9, payload: { demand: demandA }, synthetic: false }),
+      ],
+    });
+
+    assert.equal(signals.provenance?.demand?.syntheticShare, 0);
+  });
+
+  it("weist eine rein synthetische Quelle vollständig als solche aus", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "tiktok", priority: 6, confidence: 0.5, payload: { demand: demandA }, synthetic: true }),
+      ],
+    });
+
+    assert.equal(signals.provenance?.demand?.syntheticShare, 1);
+  });
+
+  it("gewichtet den synthetischen Anteil, statt Quellen zu zählen", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        // Gewicht 18 – echt.
+        provider({ id: "google-trends", priority: 20, confidence: 0.9, payload: { demand: demandA }, synthetic: false }),
+        // Gewicht 3 – synthetisch.
+        provider({ id: "tiktok", priority: 6, confidence: 0.5, payload: { demand: demandB }, synthetic: true }),
+      ],
+    });
+
+    // Gezählt wäre die Hälfte synthetisch. Gewichtet sind es 3 von 21 –
+    // die schwache Mock-Quelle hat den Wert kaum bewegt.
+    assert.equal(signals.provenance?.demand?.syntheticShare, 0.14);
+  });
+
+  it("hält die Herkunft je Signal getrennt", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({
+          id: "google-trends",
+          priority: 20,
+          confidence: 0.9,
+          capabilities: ["demand"],
+          payload: { demand: demandA },
+          synthetic: false,
+        }),
+        provider({
+          id: "etsy",
+          priority: 10,
+          confidence: 0.9,
+          capabilities: ["competition"],
+          payload: { competition: { listingCount: 8000, top10SharePct: 30, entryBarrier: "medium" } },
+          synthetic: true,
+        }),
+      ],
+    });
+
+    // Der eigentliche Zweck: Ein Lauf ist nicht pauschal echt oder synthetisch.
+    assert.equal(signals.provenance?.demand?.syntheticShare, 0);
+    assert.equal(signals.provenance?.competition?.syntheticShare, 1);
+  });
+});

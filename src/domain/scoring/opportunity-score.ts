@@ -11,6 +11,7 @@ import type {
   MarketSignals,
   OpportunityGrade,
   OpportunityScore,
+  ProvenanceKey,
   ScoreFactor,
   ScoreFactorKey,
   TrendDirection,
@@ -39,6 +40,25 @@ export interface ScoreOptions {
 
 type FactorResult = { value: number; rationale: string; imputed?: boolean };
 
+/**
+ * Aus welchem Signal jeder Faktor entsteht.
+ *
+ * Die Zuordnung ist eindeutig – jeder Faktor liest genau ein Signal. Damit
+ * ist die Herkunft eines Faktors keine Schätzung, sondern eine Ableitung:
+ * Wer das Signal getragen hat, hat den Faktor getragen.
+ */
+const FACTOR_SIGNAL: Record<ScoreFactorKey, ProvenanceKey> = {
+  demand: "demand",
+  trend: "demand",
+  competition: "competition",
+  marketAge: "competition",
+  giftPotential: "audience",
+  emotionalPull: "audience",
+  productVariety: "productTypes",
+  seasonalFit: "seasonality",
+  priceHeadroom: "pricing",
+};
+
 export function scoreOpportunity(
   signals: MarketSignals,
   options: ScoreOptions = {},
@@ -60,13 +80,21 @@ export function scoreOpportunity(
 
   const factors: ScoreFactor[] = (Object.keys(results) as ScoreFactorKey[]).map((key) => {
     const result = results[key];
+    const imputed = result.imputed ?? false;
+    // Ein geschätzter Faktor hat keine Quelle – er entstand mangels einer.
+    // Das gilt auch, wenn das Signal grundsätzlich vorlag: `marketAge` gibt
+    // auf, sobald Alter und Neuzugänge fehlen, obwohl `competition` da ist.
+    const provenance = imputed ? undefined : signals.provenance?.[FACTOR_SIGNAL[key]];
+
     return {
       key,
       label: FACTOR_LABELS[key],
       value: round(clamp(result.value), 1),
       weight: round(weights[key], 4),
       rationale: result.rationale,
-      imputed: result.imputed ?? false,
+      imputed,
+      sources: provenance?.sources ?? [],
+      syntheticShare: provenance?.syntheticShare,
     };
   });
 
@@ -85,11 +113,24 @@ export function scoreOpportunity(
     (a, b) => (b.value - NEUTRAL) * b.weight - (a.value - NEUTRAL) * a.weight,
   );
 
+  // Bleibt undefiniert, wenn die Signale keine Herkunft mitbringen. Eine 0
+  // wäre hier die gefährlichste Antwort: Sie läse sich als "nichts davon ist
+  // synthetisch", obwohl in Wahrheit nur niemand nachgehalten hat.
+  // Geschätzte Faktoren zählen nicht mit – sie sind weder echt noch
+  // synthetisch, sondern über `imputed` getrennt ausgewiesen.
+  const syntheticWeight = signals.provenance
+    ? round(
+        factors.reduce((sum, f) => sum + f.weight * (f.syntheticShare ?? 0), 0),
+        3,
+      )
+    : undefined;
+
   return {
     value,
     grade: toGrade(value),
     confidence,
     factors,
+    syntheticWeight,
     drivers: ranked
       .filter((f) => f.value > 58 && !f.imputed)
       .slice(0, 3)
