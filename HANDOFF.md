@@ -1,9 +1,9 @@
 # Handoff: BrandOS — drei echte Quellen, Herkunft je Faktor
 
 **Generated**: 2026-07-27
-**Branch**: `main`, Working Tree sauber, synchron mit `origin/main` (`44aac3f`)
+**Branch**: `main`, Working Tree sauber. **Zwei Commits über `origin/main`** — nicht gepusht.
 **Remote**: https://github.com/jannisgra1711/brandos — **öffentlich**
-**Status**: Ready for Review — lauffähig, gebaut, 259 Tests grün. Drei echte Datenquellen live.
+**Status**: Ready for Review — lauffähig, gebaut, 263 Tests grün. Drei echte Datenquellen live.
 
 ## Goal
 
@@ -18,6 +18,17 @@ Google Trends und eBay an. Diese Sitzung hat Etsy angebunden und — wichtiger �
 **sichtbar gemacht, welcher Teil des Scores gemessen ist und welcher erfunden**.
 
 ## Completed
+
+### Diese Sitzung (Fortsetzung)
+
+- [x] **`slugify()` behält Buchstaben unter Akzenten** — `"Café Racer"` ergibt
+      jetzt `cafe-racer` statt `caf-racer`. Unicode-Zerlegung **nach** der
+      Umlautersetzung, sonst würde sie „ä" zu „a" verkürzen. Begriffe ganz ohne
+      lateinische Zeichen bekommen eine Ersatzkennung statt einer leeren.
+- [x] **`rebuildIndex()` hat einen Aufrufer** — `npm run rebuild-index`
+- [x] **Wiederaufbau verliert keine Merkungen mehr** — sie standen nur im Index,
+      `toSummary()` setzt `saved: false`; ein Wiederaufbau hätte die gesamte
+      Auswahl des Nutzers gelöscht. Gefunden beim Anbinden, nicht gesucht.
 
 ### Diese Sitzung
 
@@ -54,13 +65,8 @@ Google Trends und eBay an. Diese Sitzung hat Etsy angebunden und — wichtiger �
 - [ ] **Amazon über SerpAPI** — dritte echte Quelle für Wettbewerb und Preis.
       Bringt Robustheit, aber **keine Prozentpunkte**: Diese Signale sind seit
       Etsy ohnehin gemessen.
-- [ ] **`rebuildIndex()` ohne Aufrufer** — Wiederherstellung existiert, ist
-      getestet, wird aber nirgends angeboten.
 - [ ] **Mock-Keywords kleingeschrieben** — `"emaille tasse vintage"` liest sich in
       deutschen Sätzen falsch. Verschwindet mit echten Keyword-Quellen.
-- [ ] **`slugify()` verliert Akzente** — `"Café Racer"` wird zu `caf-racer`. Nur
-      `äöüß` werden umgeschrieben. Tritt erst auf, wenn echte Quellen die
-      Kandidaten liefern.
 - [ ] **AI-Pfad nie gegen ein echtes Modell gelaufen** — bewusst, siehe
       *Key Decisions*.
 
@@ -143,6 +149,7 @@ Messergebnis im Kopfkommentar von
 | **Gemessene Quellen verdrängen synthetische, je Signal** | Ein Mock ist ein Platzhalter für eine fehlende Quelle, kein gleichberechtigter Zeuge. Ihn in eine echte Messung einzumischen macht die Messung schlechter, nicht die Schätzung besser. **Je Signal, nicht je Lauf** — eine echte Nachfrage darf eine synthetische Zielgruppe nicht mit hinauswerfen, dort gibt es keine Alternative. |
 | **Konfidenz zählt Gewicht, nicht Quellen** | Fünf Mocks, die nichts beitragen, machen einen Score nicht synthetisch. Seit der Verdrängung antworten sie weiter, ohne zu tragen. `dataQuality` beschreibt jetzt nur die *Erhebung*; der Abzug für Erfundenes passiert im Scoring, wo `syntheticWeight` bekannt ist. |
 | **Sättigung aus der breitesten Trefferzahl** | Sie setzt Angebot ins Verhältnis zur Nachfrage, und die Nachfrage wird über den *gesamten* Suchmarkt erhoben. `listingCount` ist die Zahl des Leitmarkts: Etsy meldet für „Emaille Tasse" 243, eBay 25.000. Beide stimmen, sie messen verschiedene Märkte. 243 als Marktgröße zu lesen ergäbe „nahezu unbesetzt" bei 25.000 Angeboten. **Nicht summiert** — Marktplätze überschneiden sich. |
+| **Index-Wiederaufbau ist ein Skript, kein Knopf** | Er ersetzt den Index als Ganzes und ist eine Reparatur, keine Funktion der Oberfläche. `rebuildIndex()` steht deshalb auch **nicht** im `AnalysisRepository`-Vertrag — ein abgeleiteter Index ist eine Eigenheit der Dateiablage, kein Versprechen der Persistenzschicht. Das Skript spricht direkt mit `JsonAnalysisRepository`. |
 | **Nicht Messbares bleibt leer, statt geschätzt zu werden** | Jede echte Quelle weiß weniger als der Mock. Sieben Felder sind optional; die UI zeigt „—". Eine Hochrechnung sähe aus wie eine Messung. |
 | **Normierungen gehören ins Scoring, nicht in den Provider** | Ein Provider meldet Messwerte. Eine Ergebnisliste kennt ihre Trefferzahl, nicht deren Verhältnis zur Nachfrage. |
 | **Heuristik ist die Voreinstellung, nicht der Ausweichweg** | Der Score entsteht ohnehin ohne Modell. `BRANDOS_AI_MODE=heuristic`. Nachrüstbar über eine Zeile. |
@@ -188,7 +195,9 @@ tiktok          mock   demand,keywords
 
 **Broken**: Nichts bekannt.
 
-**Uncommitted Changes**: Keine. `HEAD == origin/main == 44aac3f`.
+**Uncommitted Changes**: Keine. **`origin/main` steht noch auf `25a1c7f`** —
+zwei Commits (`fix(discovery)`, `feat(repository)`) plus dieser Dokumentstand
+warten auf den Push.
 
 **Kontingent**: `.data/provider-cache/` enthält Antworten für `google-trends`,
 `ebay` und `etsy`, 12 h gültig. Etsy kostet **einen** Aufruf je Analyse.
@@ -205,6 +214,7 @@ tiktok          mock   demand,keywords
 | `src/server/providers/live/ebay.ts` | Vorlage für jede neue Marktplatzquelle. |
 | `src/components/analysis/factor-breakdown.tsx` | Wo die Herkunft sichtbar wird: `geschätzt` / `synthetisch X %` / unmarkiert plus Quellennennung. |
 | `scripts/check-etsy-key.mjs` | Prüft die Etsy-Zugangsdaten gegen `openapi-ping`, ohne Analyse und ohne den Schlüssel auszugeben. |
+| `scripts/rebuild-index.mjs` | `npm run rebuild-index` — stellt `.data/index.json` aus den Analysedateien wieder her. **Nicht neben einem laufenden Dev-Server.** |
 | `src/server/config/env.ts` | Einziger Ort, der `process.env` liest. `etsyKey()` fügt Keystring und Secret zusammen. |
 | `scripts/alias-hooks.mjs` | Löst `@/` für den Node-Testrunner auf. **Tests nur über `npm test` starten.** |
 
@@ -278,7 +288,7 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
    ```bash
    npm run typecheck && npm run lint && npm test && npm run build
    ```
-   - Erwartet: keine Fehler, **259/259 Tests**, Build listet 10 Routen.
+   - Erwartet: keine Fehler, **263/263 Tests**, Build listet 10 Routen.
    - Bei TypeScript-Fehlern zu Next-Typen: `.next/` löschen, neu bauen.
 
 2. **Zugangsdaten prüfen** (kostet kein Kontingent):
@@ -354,6 +364,9 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
   `marketListingCount` ab, Rationale nennt die Grundlage.
 - **Manipulierte Analyse-ID** → `isSafeId()` blockiert Lesen, Löschen **und**
   Schreiben.
+- **Index verloren oder unlesbar** → Historie zeigt eine leere Liste, die
+  Analysen sind unversehrt. `npm run rebuild-index` trägt sie nach; die
+  Merkungen überleben, solange der alte Index noch lesbar ist.
 - **Nicht behandelt**: Rate-Limiting der eigenen API, Authentifizierung,
   Mandantentrennung.
 
