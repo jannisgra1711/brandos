@@ -40,13 +40,14 @@ export default async function HistoryPage() {
 
       {saved.length > 0 ? (
         <Section title="Gespeichert" description="Von dir markierte Analysen.">
-          <AnalysisList analyses={saved} />
+          <AnalysisList analyses={saved} deletable />
         </Section>
       ) : null}
 
       <Section title="Alle Analysen" description="Chronologisch, neueste zuerst.">
         <AnalysisList
           analyses={all}
+          deletable
           emptyTitle="Noch keine Analysen"
           emptyDescription="Untersuche einen Markt – das Ergebnis wird automatisch gesichert."
           emptyAction={
