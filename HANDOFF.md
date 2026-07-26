@@ -1,7 +1,7 @@
 # Handoff: BrandOS — drei echte Quellen, Herkunft je Faktor
 
 **Generated**: 2026-07-27
-**Branch**: `main`, Working Tree sauber. **Zwei Commits über `origin/main`** — nicht gepusht.
+**Branch**: `main`, Working Tree sauber, synchron mit `origin/main` (`93e7df7`)
 **Remote**: https://github.com/jannisgra1711/brandos — **öffentlich**
 **Status**: Ready for Review — lauffähig, gebaut, 263 Tests grün. Drei echte Datenquellen live.
 
@@ -195,9 +195,7 @@ tiktok          mock   demand,keywords
 
 **Broken**: Nichts bekannt.
 
-**Uncommitted Changes**: Keine. **`origin/main` steht noch auf `25a1c7f`** —
-zwei Commits (`fix(discovery)`, `feat(repository)`) plus dieser Dokumentstand
-warten auf den Push.
+**Uncommitted Changes**: Keine. `HEAD == origin/main == 93e7df7`.
 
 **Kontingent**: `.data/provider-cache/` enthält Antworten für `google-trends`,
 `ebay` und `etsy`, 12 h gültig. Etsy kostet **einen** Aufruf je Analyse.
