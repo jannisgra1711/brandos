@@ -72,8 +72,8 @@ export const DISCOVERY_SEEDS: SeedCandidate[] = [
   { term: "Weinliebhaber", category: "Food & Beverage", kind: "evergreen", hint: "Geschenkstark mit hoher Preisakzeptanz" },
 
   // --- Fahrzeuge -----------------------------------------------------------
-  { term: "Cafe Racer", category: "Fahrzeuge", kind: "niche", hint: "Aesthetikgetriebene Szene mit Designfokus" },
-  { term: "Oldtimer", category: "Fahrzeuge", kind: "evergreen", hint: "Aeltere Zielgruppe mit hoher Kaufkraft" },
+  { term: "Cafe Racer", category: "Fahrzeuge", kind: "niche", hint: "Ästhetikgetriebene Szene mit Designfokus" },
+  { term: "Oldtimer", category: "Fahrzeuge", kind: "evergreen", hint: "Ältere Zielgruppe mit hoher Kaufkraft" },
   { term: "E-Bike Touren", category: "Fahrzeuge", kind: "trend", hint: "Stark wachsende Nutzergruppe 50+" },
   { term: "Traktor Landwirtschaft", category: "Fahrzeuge", kind: "unconventional", hint: "Unterschätzte Zielgruppe mit starker Identität" },
 ];

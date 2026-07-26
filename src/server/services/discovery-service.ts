@@ -5,7 +5,7 @@ import type { DiscoveryOpportunity, MarketQuery, OpportunityKind, TrendMover } f
 import { logger } from "@/server/logging/logger";
 import { collectSignals } from "@/server/providers/aggregator";
 import { resolveProviders } from "@/server/providers/registry";
-import type { DiscoverySeed, ProviderContext } from "@/server/providers/types";
+import type { DataProvider, DiscoverySeed, ProviderContext } from "@/server/providers/types";
 import { TtlCache } from "@/server/util/cache";
 import { mapSettled } from "@/server/util/concurrency";
 
@@ -37,6 +37,17 @@ export interface DiscoverOptions {
   now?: Date;
   /** Umgeht den Cache. */
   refresh?: boolean;
+  /**
+   * Überschreibt die Provider-Auswahl. Ausschließlich für Tests gedacht –
+   * die Anwendung fragt immer die Registry, damit es genau einen Ort gibt,
+   * an dem Quellen bekannt sind.
+   */
+  providers?: DataProvider[];
+}
+
+/** Leert den Discovery-Cache. Für Tests – im Betrieb läuft er über die TTL ab. */
+export function resetDiscoveryCache(): void {
+  cache.invalidate();
 }
 
 export async function discoverOpportunities(
@@ -50,12 +61,12 @@ export async function discoverOpportunities(
 
   return cache.resolve(key, async () => {
     const log = logger.child("discovery");
-    const seeds = await collectSeeds(now);
+    const seeds = await collectSeeds(now, options.providers);
 
     log.info("Kandidaten gesammelt", { count: seeds.length });
 
     const opportunities = await mapSettled(seeds.slice(0, limit), SCAN_CONCURRENCY, (seed) =>
-      scanSeed(seed, now),
+      scanSeed(seed, now, options.providers),
     );
 
     const ranked = opportunities
@@ -101,8 +112,8 @@ export async function trendMovers(
 
 // ---------------------------------------------------------------------------
 
-async function collectSeeds(now: Date): Promise<DiscoverySeed[]> {
-  const providers = resolveProviders().filter((p) => typeof p.discover === "function");
+async function collectSeeds(now: Date, override?: DataProvider[]): Promise<DiscoverySeed[]> {
+  const providers = (override ?? resolveProviders()).filter((p) => typeof p.discover === "function");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS);
 
@@ -134,13 +145,18 @@ async function collectSeeds(now: Date): Promise<DiscoverySeed[]> {
   }
 }
 
-async function scanSeed(seed: DiscoverySeed, now: Date): Promise<DiscoveryOpportunity | undefined> {
+async function scanSeed(
+  seed: DiscoverySeed,
+  now: Date,
+  providers?: DataProvider[],
+): Promise<DiscoveryOpportunity | undefined> {
   const query: MarketQuery = { term: seed.term, market: "DE", windowMonths: 18 };
 
   const signals = await collectSignals(query, {
     now,
     timeoutMs: SCAN_TIMEOUT_MS,
     capabilities: [...SCAN_CAPABILITIES],
+    providers,
   });
 
   const demand = signals.demand;
