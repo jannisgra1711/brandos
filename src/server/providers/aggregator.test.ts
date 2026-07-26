@@ -671,3 +671,48 @@ describe("collectSignals – Herkunft der Signale", () => {
     assert.equal(signals.provenance?.competition?.syntheticShare, 1);
   });
 });
+
+describe("collectSignals – Produktarten ohne gemessenes Wachstum", () => {
+  it("lässt das Wachstum leer, wenn keine Quelle es kennt", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({
+          id: "etsy",
+          priority: 14,
+          confidence: 0.9,
+          capabilities: ["products"],
+          // Eine Listing-Suche zeigt einen Zustand, keinen Verlauf.
+          payload: { productTypes: [{ type: "Tasse", share: 1, medianPrice: 19 }] },
+        }),
+      ],
+    });
+
+    assert.equal(signals.productTypes[0]?.medianPrice, 19);
+    assert.equal(signals.productTypes[0]?.growth90d, undefined, "ein Wachstum wurde erfunden");
+  });
+
+  it("zieht einen bekannten Wert nicht gegen null, wenn eine Quelle ihn nicht kennt", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({
+          id: "etsy",
+          priority: 14,
+          confidence: 0.9,
+          capabilities: ["products"],
+          payload: { productTypes: [{ type: "Tasse", share: 0.5, medianPrice: 19 }] },
+        }),
+        provider({
+          id: "amazon",
+          priority: 8,
+          confidence: 0.9,
+          capabilities: ["products"],
+          payload: { productTypes: [{ type: "Tasse", share: 0.5, medianPrice: 21, growth90d: 0.12 }] },
+        }),
+      ],
+    });
+
+    assert.equal(signals.productTypes[0]?.growth90d, 0.12);
+  });
+});

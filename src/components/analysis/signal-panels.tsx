@@ -414,10 +414,15 @@ export function ProductTypePanel({ signals }: { signals: MarketSignals }) {
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-sm text-text">{type.type}</span>
               <span className="text-xs tabular-nums text-muted">
-                {formatCurrency(type.medianPrice)} ·{" "}
-                <span className={type.growth90d >= 0 ? "text-positive" : "text-negative"}>
-                  {formatPercent(type.growth90d)}
-                </span>
+                {formatCurrency(type.medianPrice)}
+                {type.growth90d === undefined ? null : (
+                  <>
+                    {" · "}
+                    <span className={type.growth90d >= 0 ? "text-positive" : "text-negative"}>
+                      {formatPercent(type.growth90d)}
+                    </span>
+                  </>
+                )}
               </span>
             </div>
             <BarMeter value={type.share * 100} className="mt-1.5" />

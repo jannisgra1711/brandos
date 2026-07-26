@@ -142,9 +142,10 @@ export function buildMarketBrief(
   if (signals.productTypes.length > 0) {
     push("## Produktarten");
     for (const type of signals.productTypes) {
-      push(
-        `- ${type.type}: ${de(type.share * 100)} % Anteil, Medianpreis ${type.medianPrice}, Wachstum ${pct(type.growth90d)}`,
-      );
+      // Kein gemessenes Wachstum, keine Zeile darueber – sonst schreibt das
+      // Modell ueber eine Entwicklung, die niemand erhoben hat.
+      const growth = type.growth90d === undefined ? "" : `, Wachstum ${pct(type.growth90d)}`;
+      push(`- ${type.type}: ${de(type.share * 100)} % Anteil, Medianpreis ${type.medianPrice}${growth}`);
     }
     push("");
   }

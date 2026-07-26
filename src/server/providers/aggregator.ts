@@ -424,7 +424,9 @@ function mergeProductTypes(contributions: Contribution[]): ProductTypeSignal[] {
       };
       existing.share += productType.share * entry.weight;
       existing.price.push(productType.medianPrice);
-      existing.growth.push(productType.growth90d);
+      // Nur Quellen mitteln, die ein Wachstum kennen. Eine Listing-Suche
+      // kennt keins – ihre 0 würde den Wert gegen null ziehen.
+      if (productType.growth90d !== undefined) existing.growth.push(productType.growth90d);
       merged.set(key, existing);
     }
   }
@@ -437,7 +439,7 @@ function mergeProductTypes(contributions: Contribution[]): ProductTypeSignal[] {
       type: e.type,
       share: round(e.share / total, 3),
       medianPrice: round(mean(e.price), 2),
-      growth90d: round(mean(e.growth), 3),
+      growth90d: e.growth.length === 0 ? undefined : round(mean(e.growth), 3),
     }))
     .sort((a, b) => b.share - a.share)
     .slice(0, 8);

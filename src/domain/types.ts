@@ -275,7 +275,15 @@ export interface ProductTypeSignal {
   /** Anteil am Angebot, 0..1. */
   share: number;
   medianPrice: number;
-  growth90d: number;
+  /**
+   * Entwicklung der Produktart über 90 Tage.
+   *
+   * Optional, weil eine Listing-Suche einen Zustand zeigt, keinen Verlauf:
+   * Sie sagt, was heute angeboten wird, nicht was vor drei Monaten angeboten
+   * wurde. Ein Wachstum daraus abzuleiten hieße, zwei Messungen zu erfinden.
+   * Fehlt der Wert, wertet der Ideengenerator ihn als neutral.
+   */
+  growth90d?: number;
 }
 
 export interface DataQuality {

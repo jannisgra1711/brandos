@@ -159,7 +159,9 @@ export function generateIdeas(
 
     // Das Potenzial einer Einzelidee leitet sich vom Marktscore ab und wird
     // durch die Passung der Bausteine moduliert – nie unabhängig erfunden.
-    const typeBonus = productType.growth90d * 40;
+    // Ohne gemessenes Wachstum kein Bonus und kein Abzug – eine Listing-Suche
+    // zeigt einen Zustand, keinen Verlauf.
+    const typeBonus = (productType.growth90d ?? 0) * 40;
     const audienceBonus = (audience?.share ?? 0.25) * 30;
     const motiveBonus = (motive?.weight ?? 0.5) * 12;
     const potential = clamp(score.value + typeBonus + audienceBonus + motiveBonus - 10);
