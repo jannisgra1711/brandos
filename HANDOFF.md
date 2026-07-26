@@ -1,7 +1,7 @@
 # Handoff: BrandOS — drei echte Quellen, Herkunft je Faktor
 
-**Generated**: 2026-07-26
-**Branch**: `main`, Working Tree sauber, **7 Commits vor `origin/main`** (noch nicht gepusht)
+**Generated**: 2026-07-27
+**Branch**: `main`, Working Tree sauber, synchron mit `origin/main` (`44aac3f`)
 **Remote**: https://github.com/jannisgra1711/brandos — **öffentlich**
 **Status**: Ready for Review — lauffähig, gebaut, 259 Tests grün. Drei echte Datenquellen live.
 
@@ -45,7 +45,6 @@ Google Trends und eBay an. Diese Sitzung hat Etsy angebunden und — wichtiger �
 
 ## Not Yet Done
 
-- [ ] **7 Commits nicht gepusht.** `git push` steht aus.
 - [ ] **`audience` hat keine echte Quelle** — Geschenkpotenzial und Emotionale
       Bindung (zusammen **18 % der Gewichtung**) bleiben synthetisch. Braucht
       Reddit oder Pinterest, **beide Zugänge blockiert**. Etsy liefert es
@@ -189,7 +188,7 @@ tiktok          mock   demand,keywords
 
 **Broken**: Nichts bekannt.
 
-**Uncommitted Changes**: Keine. `HEAD == 8d2a631`, 7 Commits vor `origin/main`.
+**Uncommitted Changes**: Keine. `HEAD == origin/main == 44aac3f`.
 
 **Kontingent**: `.data/provider-cache/` enthält Antworten für `google-trends`,
 `ebay` und `etsy`, 12 h gültig. Etsy kostet **einen** Aufruf je Analyse.
@@ -304,7 +303,6 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
      drei mit `synthetisch`.
 
 5. **Weiterarbeiten** — Vorschlag nach Wert:
-   - **`git push`** — 7 Commits stehen aus.
    - **Amazon über SerpAPI**. Vorlage: `ebay.ts`. Bringt Robustheit, keine
      Prozentpunkte.
    - **`audience`**: der einzige verbleibende große Hebel (18 %). Braucht Reddit
