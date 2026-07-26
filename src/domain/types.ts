@@ -177,7 +177,24 @@ export type EntryBarrier = "low" | "medium" | "high";
  * Scoring behandelt sie sonst als Unsicherheit.
  */
 export interface CompetitionSignal {
+  /** Trefferzahl des Leitmarkts – der Quelle mit dem groessten Gewicht. */
   listingCount: number;
+  /**
+   * Groesste gemessene Trefferzahl ueber alle beitragenden Marktplaetze.
+   *
+   * `listingCount` beschreibt einen Marktplatz, und welcher das ist, haengt
+   * an der Priorität: Etsy meldet für "Emaille Tasse" 243 Treffer, eBay im
+   * selben Lauf 25.000. Beide Zahlen stimmen – sie messen verschiedene
+   * Märkte.
+   *
+   * Für die Sättigung ist das der falsche Bezug: Sie setzt das Angebot ins
+   * Verhältnis zur Nachfrage, und die Nachfrage wird über den gesamten
+   * Suchmarkt erhoben, nicht über einen Marktplatz. Ein Markt mit 25.000
+   * Angeboten als unbesetzt zu lesen, nur weil der Leitmarkt klein ist,
+   * waere eine Fehlaussage. Deshalb liegt hier die breiteste gemessene
+   * Zahl – der Markt hat *mindestens* so viele Angebote.
+   */
+  marketListingCount?: number;
   /** Nur messbar, wenn die Quelle über die sichtbaren Treffer hinaussieht. */
   activeSellers?: number;
   /**

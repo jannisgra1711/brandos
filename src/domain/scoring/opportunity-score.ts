@@ -101,18 +101,6 @@ export function scoreOpportunity(
   const weighted = factors.reduce((sum, f) => sum + f.value * f.weight, 0);
   const value = round(clamp(weighted), 1);
 
-  const imputedWeight = factors
-    .filter((f) => f.imputed)
-    .reduce((sum, f) => sum + f.weight, 0);
-  const confidence = round(
-    clamp(signals.dataQuality.confidence * (1 - imputedWeight * 0.6), 0.05, 1),
-    2,
-  );
-
-  const ranked = [...factors].sort(
-    (a, b) => (b.value - NEUTRAL) * b.weight - (a.value - NEUTRAL) * a.weight,
-  );
-
   // Bleibt undefiniert, wenn die Signale keine Herkunft mitbringen. Eine 0
   // wäre hier die gefährlichste Antwort: Sie läse sich als "nichts davon ist
   // synthetisch", obwohl in Wahrheit nur niemand nachgehalten hat.
@@ -124,6 +112,35 @@ export function scoreOpportunity(
         3,
       )
     : undefined;
+
+  const imputedWeight = factors
+    .filter((f) => f.imputed)
+    .reduce((sum, f) => sum + f.weight, 0);
+
+  /**
+   * Wie viel der Zahl auf Erfundenem beruht.
+   *
+   * `dataQuality.syntheticShare` zählt antwortende Quellen und ist dafür das
+   * falsche Mass: Fünf Mocks, die nichts beitragen, machen einen Score nicht
+   * synthetisch. Sobald die Herkunft vorliegt, zählt das Gewicht. Ohne sie
+   * bleibt die grobe Quellenquote – besser als gar keine Vorsicht.
+   */
+  const syntheticBasis = syntheticWeight ?? signals.dataQuality.syntheticShare;
+
+  // Ein Score, dessen Gewicht vollständig synthetisch ist, darf höchstens
+  // halb so viel Vertrauen tragen wie derselbe Score aus Messungen.
+  const confidence = round(
+    clamp(
+      signals.dataQuality.confidence * (1 - imputedWeight * 0.6) * (1 - syntheticBasis * 0.5),
+      0.05,
+      1,
+    ),
+    2,
+  );
+
+  const ranked = [...factors].sort(
+    (a, b) => (b.value - NEUTRAL) * b.weight - (a.value - NEUTRAL) * a.weight,
+  );
 
   return {
     value,
@@ -215,7 +232,11 @@ function scoreCompetition(signals: MarketSignals): FactorResult {
   // den Provider: eine Suchergebnisliste kennt ihre Treffer, aber nicht das
   // Verhältnis zur Nachfrage.
   const derived = competition.saturationIndex === undefined;
-  const saturationIndex = competition.saturationIndex ?? normalizeLog(competition.listingCount, 200, 200_000);
+  // Abgeleitet wird aus der breitesten gemessenen Trefferzahl, nicht aus der
+  // des Leitmarkts: Die Sättigung setzt Angebot und Nachfrage ins Verhältnis,
+  // und die Nachfrage ist über den gesamten Suchmarkt erhoben.
+  const basisCount = competition.marketListingCount ?? competition.listingCount;
+  const saturationIndex = competition.saturationIndex ?? normalizeLog(basisCount, 200, 200_000);
 
   const saturation = normalizeInverse(saturationIndex, 10, 95);
   // Hohe Konzentration bei den Top 10 bedeutet: der Markt ist verteilt.
@@ -224,7 +245,14 @@ function scoreCompetition(signals: MarketSignals): FactorResult {
 
   const value = saturation * 0.65 + concentration * 0.35 - barrierPenalty;
 
-  const basis = derived ? " (aus der Listing-Zahl abgeleitet)" : "";
+  // Weicht die Ableitungsgrundlage vom Leitmarkt ab, muss der Satz das sagen –
+  // sonst steht eine Sättigung neben einer Listing-Zahl, aus der sie
+  // erkennbar nicht stammt.
+  const basis = !derived
+    ? ""
+    : basisCount === competition.listingCount
+      ? " (aus der Listing-Zahl abgeleitet)"
+      : ` (abgeleitet aus ${deCompact(basisCount)} Listings über alle Marktplätze)`;
 
   return {
     value,

@@ -349,6 +349,9 @@ function mergeCompetition(contributions: Contribution[]): MarketSignals["competi
     // Listing-Zahlen sind quellenspezifisch (Etsy != Amazon) – hier zählt der
     // Leitmarkt, nicht der Durchschnitt.
     listingCount: primary.value.listingCount,
+    // Nicht summiert: Marktplätze überschneiden sich, addierte Treffer gäbe
+    // es nirgends. Das Maximum ist die belastbare Untergrenze.
+    marketListingCount: Math.max(...entries.map((e) => e.value.listingCount)),
     // Die erste Quelle, die es überhaupt weiß – gemischt wäre es sinnlos,
     // weil sich Anbieterzahlen zwischen Marktplätzen nicht addieren.
     activeSellers: entries.find((e) => e.value.activeSellers !== undefined)?.value.activeSellers,
@@ -493,12 +496,14 @@ function assessQuality(
   // Mehrere unabhängige Quellen erhöhen das Vertrauen deutlich stärker als
   // eine einzelne sehr selbstbewusste Quelle.
   const breadth = clamp(ok.length / 4, 0, 1);
+
+  // Der synthetische Anteil geht hier bewusst *nicht* ein. Er wird im Scoring
+  // abgezogen, wo das Gewicht der betroffenen Faktoren bekannt ist – hier
+  // liesse sich nur zählen, wer geantwortet hat. Seit gemessene Quellen die
+  // synthetischen verdrängen, antworten Mocks auch dann noch, wenn sie zum
+  // Ergebnis nichts beitragen; ihre Zahl waere also doppelt irrefuehrend.
   const confidence = round(
-    clamp(
-      (avgConfidence * 0.45 + coverage * 0.3 + breadth * 0.25) * (1 - syntheticShare * 0.25),
-      0.05,
-      1,
-    ),
+    clamp(avgConfidence * 0.45 + coverage * 0.3 + breadth * 0.25, 0.05, 1),
     2,
   );
 

@@ -306,3 +306,139 @@ describe("scoreOpportunity – Herkunft der Faktoren", () => {
     assert.equal(half.syntheticWeight, Math.round(full.syntheticWeight * 500) / 1000);
   });
 });
+
+/**
+ * Die Konfidenz beantwortet: Wie sehr traegt diese Zahl? Dafuer zaehlt, wie
+ * viel *Gewicht* auf Erfundenem oder Geschaetztem beruht - nicht, wie viele
+ * Quellen geantwortet haben.
+ */
+describe("scoreOpportunity – Konfidenz nach Gewicht", () => {
+  const audience = {
+    segments: [],
+    motives: [{ label: "Identitaet", kind: "identity" as const, weight: 1 }],
+    giftPotential: 70,
+    emotionalIntensity: 65,
+  };
+
+  const full = {
+    demand: strongDemand,
+    competition: openCompetition,
+    audience,
+  };
+
+  it("senkt die Konfidenz, wenn ein Signal synthetisch ist", () => {
+    const measured = scoreOpportunity(
+      signals({
+        ...full,
+        provenance: {
+          demand: { sources: ["google-trends"], syntheticShare: 0 },
+          competition: { sources: ["etsy"], syntheticShare: 0 },
+          audience: { sources: ["reddit"], syntheticShare: 0 },
+        },
+      }),
+    );
+
+    const partlySynthetic = scoreOpportunity(
+      signals({
+        ...full,
+        provenance: {
+          demand: { sources: ["google-trends"], syntheticShare: 0 },
+          competition: { sources: ["etsy"], syntheticShare: 0 },
+          audience: { sources: ["reddit"], syntheticShare: 1 },
+        },
+      }),
+    );
+
+    assert.ok(
+      partlySynthetic.confidence < measured.confidence,
+      `${partlySynthetic.confidence} sollte unter ${measured.confidence} liegen`,
+    );
+    // Der Score selbst bleibt unberuehrt - fehlende Echtheit ist
+    // Unsicherheit, keine schlechte Nachricht.
+    assert.equal(partlySynthetic.value, measured.value);
+  });
+
+  it("gewichtet die Strafe mit dem Einfluss des Signals", () => {
+    const build = (key: "demand" | "audience") =>
+      scoreOpportunity(
+        signals({
+          ...full,
+          provenance: {
+            demand: { sources: ["google-trends"], syntheticShare: key === "demand" ? 1 : 0 },
+            competition: { sources: ["etsy"], syntheticShare: 0 },
+            audience: { sources: ["reddit"], syntheticShare: key === "audience" ? 1 : 0 },
+          },
+        }),
+      );
+
+    // Nachfrage und Trend tragen zusammen mehr Gewicht als Geschenkpotenzial
+    // und Emotionale Bindung - eine synthetische Nachfrage muss also staerker
+    // durchschlagen als eine synthetische Zielgruppe.
+    assert.ok(
+      build("demand").confidence < build("audience").confidence,
+      "die Strafe folgt nicht dem Gewicht",
+    );
+  });
+
+  it("faellt auf die Quellenquote zurueck, wenn keine Herkunft vorliegt", () => {
+    const withoutProvenance = scoreOpportunity(
+      signals({ ...full, dataQuality: { coverage: 1, sourceCount: 3, syntheticShare: 1, freshnessDays: 1, confidence: 0.9 } }),
+    );
+    const measuredSources = scoreOpportunity(
+      signals({ ...full, dataQuality: { coverage: 1, sourceCount: 3, syntheticShare: 0, freshnessDays: 1, confidence: 0.9 } }),
+    );
+
+    // Ohne Herkunft ist die grobe Quote das einzige Mass - besser als gar
+    // keine Vorsicht bei Analysen aus der Zeit davor.
+    assert.ok(withoutProvenance.confidence < measuredSources.confidence);
+  });
+});
+
+describe("scoreCompetition – Grundlage der abgeleiteten Saettigung", () => {
+  const partial = { listingCount: 243, top10SharePct: 30, entryBarrier: "low" as const };
+
+  it("leitet aus der breitesten Trefferzahl ab, nicht aus der des Leitmarkts", () => {
+    const narrow = scoreOpportunity(signals({ competition: partial }));
+    const broad = scoreOpportunity(signals({ competition: { ...partial, marketListingCount: 25_000 } }));
+
+    const factor = (s: ReturnType<typeof scoreOpportunity>) =>
+      s.factors.find((f) => f.key === "competition");
+
+    // Ein Markt mit 25.000 Angeboten ist enger als einer mit 243 - der
+    // Wettbewerbsfaktor muss darauf reagieren.
+    assert.ok(
+      (factor(broad)?.value ?? 0) < (factor(narrow)?.value ?? 0),
+      "die breitere Trefferzahl blieb ohne Wirkung",
+    );
+  });
+
+  it("sagt im Begruendungstext, worauf die Ableitung beruht", () => {
+    const broad = scoreOpportunity(signals({ competition: { ...partial, marketListingCount: 25_000 } }));
+    const rationale = broad.factors.find((f) => f.key === "competition")?.rationale ?? "";
+
+    // Sonst steht eine Saettigung neben einer Listing-Zahl, aus der sie
+    // erkennbar nicht stammt.
+    assert.match(rationale, /über alle Marktplätze/);
+    assert.match(rationale, /243 Listings/);
+  });
+
+  it("nennt keine Marktplaetze, wenn beide Zahlen uebereinstimmen", () => {
+    const same = scoreOpportunity(
+      signals({ competition: { ...partial, marketListingCount: 243 } }),
+    );
+    const rationale = same.factors.find((f) => f.key === "competition")?.rationale ?? "";
+
+    assert.match(rationale, /aus der Listing-Zahl abgeleitet/);
+    assert.doesNotMatch(rationale, /über alle Marktplätze/);
+  });
+
+  it("ruehrt eine gemeldete Saettigung nicht an", () => {
+    const reported = scoreOpportunity(
+      signals({ competition: { ...partial, saturationIndex: 64, marketListingCount: 25_000 } }),
+    );
+    const rationale = reported.factors.find((f) => f.key === "competition")?.rationale ?? "";
+
+    assert.match(rationale, /Sättigung 64\/100 bei/);
+    assert.doesNotMatch(rationale, /abgeleitet/);
+  });
+});

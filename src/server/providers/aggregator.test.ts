@@ -465,7 +465,7 @@ describe("collectSignals – Datenqualität", () => {
     );
   });
 
-  it("senkt die Konfidenz bei synthetischen Daten", async () => {
+  it("weist synthetische Daten aus, ohne die Erhebungsqualität dafür zu senken", async () => {
     const real = await collectSignals(QUERY, {
       now: NOW,
       providers: [
@@ -481,7 +481,16 @@ describe("collectSignals – Datenqualität", () => {
     });
 
     assert.equal(synthetic.dataQuality.syntheticShare, 1);
-    assert.ok(synthetic.dataQuality.confidence < real.dataQuality.confidence);
+    assert.equal(real.dataQuality.syntheticShare, 0);
+
+    // `dataQuality` beschreibt die Erhebung: gleich viele Quellen, gleiche
+    // Abdeckung, gleiche Aktualität. Dass die Daten erfunden sind, schlägt
+    // im Score durch – dort ist bekannt, wie viel Gewicht daran hängt.
+    assert.equal(
+      synthetic.dataQuality.confidence,
+      real.dataQuality.confidence,
+      "die Quellenquote darf die Erhebungsqualität nicht mehr mindern",
+    );
   });
 
   it("weist die Abdeckung anhand der beitragenden Fähigkeiten aus", async () => {
@@ -829,5 +838,36 @@ describe("collectSignals – gemessene Quellen verdrängen synthetische", () => 
     // unabhängig davon.
     assert.equal(signals.competition?.listingCount, 243);
     assert.deepEqual(signals.provenance?.competition?.sources, ["etsy"]);
+  });
+});
+
+describe("collectSignals – Marktbreite der Angebotsseite", () => {
+  const base = { top10SharePct: 30, entryBarrier: "low" as const };
+
+  it("haelt die groesste gemessene Trefferzahl neben der des Leitmarkts", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        // Etsy fuehrt nach Gewicht, meldet aber den kleineren Markt.
+        provider({ id: "etsy", priority: 14, confidence: 0.9, payload: { competition: { ...base, listingCount: 243 } } }),
+        provider({ id: "ebay", priority: 12, confidence: 0.9, payload: { competition: { ...base, listingCount: 25_000 } } }),
+      ],
+    });
+
+    assert.equal(signals.competition?.listingCount, 243, "der Leitmarkt bleibt der Leitmarkt");
+    assert.equal(signals.competition?.marketListingCount, 25_000);
+  });
+
+  it("summiert nicht ueber Marktplaetze hinweg", async () => {
+    const signals = await collectSignals(QUERY, {
+      now: NOW,
+      providers: [
+        provider({ id: "etsy", priority: 14, confidence: 0.9, payload: { competition: { ...base, listingCount: 243 } } }),
+        provider({ id: "ebay", priority: 12, confidence: 0.9, payload: { competition: { ...base, listingCount: 25_000 } } }),
+      ],
+    });
+
+    // Addiert waeren es 25.243 - eine Zahl, die kein Marktplatz je zeigt.
+    assert.equal(signals.competition?.marketListingCount, 25_000);
   });
 });
