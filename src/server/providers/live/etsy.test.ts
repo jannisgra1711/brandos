@@ -76,8 +76,9 @@ function stubFetch(handler: (url: string, init?: RequestInit) => { status?: numb
   };
 }
 
-function withKey(key = "test-key"): void {
-  process.env.ETSY_API_KEY = key;
+function withKey(keystring = "test-keystring", secret = "test-secret"): void {
+  process.env.ETSY_API_KEY = keystring;
+  process.env.ETSY_API_SECRET = secret;
   process.env.BRANDOS_PROVIDER_CACHE_TTL_MS = "0";
   resetConfig();
   resetEtsyInfrastructure();
@@ -85,6 +86,7 @@ function withKey(key = "test-key"): void {
 
 afterEach(() => {
   delete process.env.ETSY_API_KEY;
+  delete process.env.ETSY_API_SECRET;
   delete process.env.BRANDOS_PROVIDER_CACHE_TTL_MS;
   resetConfig();
   resetEtsyInfrastructure();
@@ -109,8 +111,21 @@ describe("etsyProvider – Deklaration", () => {
     assert.ok(etsyProvider.priority > 12, `Priorität ist ${etsyProvider.priority}`);
   });
 
-  it("meldet sich nur mit gesetztem Key als verfügbar", () => {
+  it("verlangt beide Zugangsdaten, nicht eines von beiden", () => {
     delete process.env.ETSY_API_KEY;
+    delete process.env.ETSY_API_SECRET;
+    resetConfig();
+    assert.equal(etsyProvider.isAvailable(), false);
+
+    // Eine halbe Angabe ergibt keinen gültigen Header – Etsy lehnt sie mit
+    // "Shared secret is required" bzw. "API key not found" ab. Als verfügbar
+    // zu gelten hiesse, bei jeder Analyse sicher zu scheitern.
+    process.env.ETSY_API_KEY = "nur-keystring";
+    resetConfig();
+    assert.equal(etsyProvider.isAvailable(), false);
+
+    delete process.env.ETSY_API_KEY;
+    process.env.ETSY_API_SECRET = "nur-secret";
     resetConfig();
     assert.equal(etsyProvider.isAvailable(), false);
 
@@ -142,8 +157,8 @@ describe("etsyProvider – Anfrage", () => {
     assert.equal(params.get("keywords"), "Emaille Tasse");
   });
 
-  it("schickt den Schlüssel als Header, nicht als Query-Parameter", async () => {
-    withKey("geheim");
+  it("sendet Keystring und Secret zusammen im Header, nicht in der URL", async () => {
+    withKey("mein-keystring", "mein-secret");
     let seenHeader: string | undefined;
     let seenUrl = "";
     const restore = stubFetch((url, init) => {
@@ -158,8 +173,10 @@ describe("etsyProvider – Anfrage", () => {
       restore();
     }
 
-    assert.equal(seenHeader, "geheim");
-    assert.ok(!seenUrl.includes("geheim"), "der Schlüssel stand in der URL");
+    // Etsy verlangt genau diese Form: "Invalid API key: should be in the
+    // format 'keystring:shared_secret'." Einzeln gesendet lehnt die API ab.
+    assert.equal(seenHeader, "mein-keystring:mein-secret");
+    assert.ok(!seenUrl.includes("mein-secret"), "das Secret stand in der URL");
   });
 });
 
@@ -400,25 +417,48 @@ describe("etsyProvider – Wettbewerb", () => {
 
 describe("etsyProvider – Fehlerfälle", () => {
   it("nennt einen fehlenden Schlüssel beim Namen", async () => {
-    delete process.env.ETSY_API_KEY;
+    delete process.env.ETSY_API_SECRET;
     process.env.BRANDOS_PROVIDER_CACHE_TTL_MS = "0";
     resetConfig();
     resetEtsyInfrastructure();
 
     await assert.rejects(
       () => etsyProvider.fetch(QUERY, context()),
-      (error: unknown) => error instanceof ProviderError && /ETSY_API_KEY/.test(error.message),
+      (error: unknown) => error instanceof ProviderError && /ETSY_API_SECRET/.test(error.message),
     );
   });
 
-  it("erklärt einen abgelehnten Schlüssel", async () => {
+  it("reicht Etsys Begründung für einen abgelehnten Schlüssel durch", async () => {
     withKey();
-    const restore = stubFetch(() => ({ status: 403, body: {} }));
+    // Der Header erwartet das Shared Secret, nicht den Keystring. Wer das
+    // verwechselt, bekommt genau diese Meldung – und nur sie führt zur
+    // Lösung. Eine eigene Formulierung an ihrer Stelle würde die Spur
+    // verwischen, die im Quellenprotokoll landet.
+    const restore = stubFetch(() => ({
+      status: 403,
+      body: { error: "Shared secret is required in x-api-key header." },
+    }));
 
     try {
       await assert.rejects(
         () => etsyProvider.fetch(QUERY, context()),
-        (error: unknown) => error instanceof ProviderError && /ungültig|freigeschaltet/.test(error.message),
+        (error: unknown) => error instanceof ProviderError && /Shared secret is required/.test(error.message),
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("bleibt aussagefähig, wenn Etsy keinen Grund nennt", async () => {
+    withKey();
+    // `undefined` erzeugt im Stub einen wirklich leeren Rumpf – genau das,
+    // was Etsy bei einem abgelehnten Schlüssel zurückgibt.
+    const restore = stubFetch(() => ({ status: 401, body: undefined }));
+
+    try {
+      await assert.rejects(
+        () => etsyProvider.fetch(QUERY, context()),
+        (error: unknown) => error instanceof ProviderError && /ETSY_API_SECRET abgelehnt/.test(error.message),
       );
     } finally {
       restore();

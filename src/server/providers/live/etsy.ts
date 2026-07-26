@@ -36,6 +36,25 @@ import { CachedFailure, ProviderResponseCache } from "../util/response-cache";
  * nicht den Gesamtbestand. Für einen Neueinsteiger ist das die relevante
  * Grundgesamtheit – er konkurriert um die Plätze, die Käufer ansehen.
  *
+ * **Produktarten aus `taxonomy_id` – geprüft und verworfen.** Jedes Listing
+ * nennt seine Kategorie, und `GET /v3/application/seller-taxonomy/nodes`
+ * löst sie auf: 3065 Knoten, davon 2503 Blätter. Daraus liessen sich Anteile
+ * und Medianpreise je Produktart sauber messen.
+ *
+ * Die Namen sind jedoch **ausschliesslich englisch**: "Adult Bibs",
+ * "Aprons", "Belt Buckles". Ein Sprachparameter existiert nicht, und
+ * `Accept-Language: de-DE` ändert die Antwort nachweislich nicht – gemessen
+ * gegen die echte API, byte-gleiches Ergebnis. Diese Namen landen in
+ * deutschen Sätzen: in der Score-Begründung ("führend \\"Aprons\\""), in der
+ * Signaltafel und über `productPhrase()` in Ideentiteln
+ * ("Belt Buckles-Hoodie").
+ *
+ * Ein Übersetzungslexikon über 2503 Blätter wäre Handarbeit mit Lücken, und
+ * ein Modell zur Laufzeit einzusetzen widerspräche der Zusage, dass der Score
+ * ohne Modellbeteiligung entsteht. Deshalb bleibt `products` hier unbesetzt.
+ * Wer es erneut versucht, braucht eine Quelle mit **lokalisierten**
+ * Kategorienamen.
+ *
  * Kontingent: ein Aufruf je Analyse.
  */
 
@@ -144,7 +163,7 @@ async function collect(
 ): Promise<ProviderResult> {
   const apiKey = getConfig().providers.keys.etsy;
   if (!apiKey) {
-    throw new ProviderError("etsy", "Kein ETSY_API_KEY konfiguriert");
+    throw new ProviderError("etsy", "ETSY_API_KEY und ETSY_API_SECRET nötig, es fehlt mindestens einer");
   }
 
   const params = new URLSearchParams({
@@ -211,9 +230,14 @@ async function request(url: string, apiKey: string, signal: AbortSignal): Promis
   }
 
   if (!response.ok) {
+    // Etsys eigene Begründung ist bei 401/403 die einzig nützliche: Sie
+    // unterscheidet einen ungültigen Schlüssel von einem der falschen Sorte.
+    // Der Header erwartet das Shared Secret, nicht den Keystring – wer das
+    // verwechselt, bekommt "Shared secret is required in x-api-key header."
+    const detail = await response.text().catch(() => "");
     const hint =
       response.status === 401 || response.status === 403
-        ? "ETSY_API_KEY ungültig oder nicht freigeschaltet"
+        ? (detail.trim() || "ETSY_API_SECRET abgelehnt")
         : response.status === 429
           ? "Etsy-Kontingent erschöpft"
           : `HTTP ${response.status}`;

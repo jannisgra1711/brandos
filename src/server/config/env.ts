@@ -63,6 +63,23 @@ function optional(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+/**
+ * Etsys `x-api-key` erwartet beide Werte in einem Header, durch Doppelpunkt
+ * getrennt: `keystring:shared_secret`. Einzeln gesendet lehnt die API ab –
+ * der Keystring allein mit "Shared secret is required in x-api-key header.",
+ * das Secret allein mit "API key not found".
+ *
+ * Zusammengesetzt wird hier, damit der Provider einen fertigen Headerwert
+ * bekommt und es bei einem Ort bleibt, der `process.env` liest. Fehlt einer
+ * der beiden, gilt die Quelle als nicht konfiguriert – eine halbe Angabe
+ * ergibt keinen gültigen Header.
+ */
+function etsyKey(): string | undefined {
+  const keystring = optional(process.env.ETSY_API_KEY);
+  const secret = optional(process.env.ETSY_API_SECRET);
+  return keystring && secret ? `${keystring}:${secret}` : undefined;
+}
+
 function load(): AppConfig {
   return {
     ai: {
@@ -77,7 +94,7 @@ function load(): AppConfig {
       cacheTtlMs: readInt(process.env.BRANDOS_PROVIDER_CACHE_TTL_MS, 12 * 60 * 60 * 1000, true),
       maxConcurrent: readInt(process.env.BRANDOS_PROVIDER_MAX_CONCURRENT, 3),
       keys: {
-        etsy: optional(process.env.ETSY_API_KEY),
+        etsy: etsyKey(),
         pinterest: optional(process.env.PINTEREST_ACCESS_TOKEN),
         reddit: optional(process.env.REDDIT_CLIENT_ID),
         serpApi: optional(process.env.SERPAPI_KEY),
