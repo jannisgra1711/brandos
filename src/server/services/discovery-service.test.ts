@@ -432,6 +432,35 @@ describe("discoverOpportunities – Kennung und Verlauf", () => {
     assert.equal(result[0]?.id, "emaille-tasse-fuer-huendchen-strasse");
   });
 
+  it("behält Buchstaben unter fremden Akzenten", async () => {
+    const result = await discoverOpportunities({
+      now: NOW,
+      providers: [testProvider({ id: "reddit", seeds: [seed("Café Racer für Señor")] })],
+    });
+
+    assert.equal(result[0]?.id, "cafe-racer-fuer-senor");
+  });
+
+  it("schreibt Umlaute aus, statt sie auf den Grundbuchstaben zu kürzen", async () => {
+    const result = await discoverOpportunities({
+      now: NOW,
+      providers: [testProvider({ id: "reddit", seeds: [seed("Öko-Grüße")] })],
+    });
+
+    // "oko-gruse" wäre das Ergebnis, wenn die Zerlegung vor der Ersetzung liefe.
+    assert.equal(result[0]?.id, "oeko-gruesse");
+  });
+
+  it("vergibt auch ohne lateinische Zeichen eine Kennung", async () => {
+    const result = await discoverOpportunities({
+      now: NOW,
+      providers: [testProvider({ id: "reddit", seeds: [seed("茶碗")] })],
+    });
+
+    assert.notEqual(result[0]?.id, "");
+    assert.match(result[0]?.id ?? "", /^[a-z0-9-]+$/);
+  });
+
   it("kürzt den Verlauf auf die letzten zwölf Punkte", async () => {
     const long = series(Array.from({ length: 18 }, (_, i) => i + 1));
 

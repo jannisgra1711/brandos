@@ -226,12 +226,29 @@ function buildReason(seed: DiscoverySeed, growth: number, saturation?: number): 
   return `${parts.join(" – ")}.`;
 }
 
+/**
+ * Kennung aus einem Begriff. Nur hier ist `toLowerCase()` auf deutschem Text
+ * zulässig – das Ergebnis ist eine Kennung, kein Text für Leser.
+ *
+ * Umlaute werden ausgeschrieben, alle übrigen Akzente über die Unicode-Zerlegung
+ * entfernt: "Café Racer" ergibt `cafe-racer`, nicht `caf-racer`. **Die
+ * Reihenfolge trägt die Regel** – die Zerlegung würde "ä" ebenfalls auf "a"
+ * reduzieren und die deutsche Ersatzschreibung damit aushebeln.
+ */
 function slugify(term: string): string {
-  return term
+  const slug = term
     .toLowerCase()
     .replace(/[äöüß]/g, (c) => ({ ä: "ae", ö: "oe", ü: "ue", ß: "ss" })[c] ?? c)
+    .normalize("NFD")
+    // Die bei der Zerlegung freigelegten kombinierenden Zeichen.
+    .replace(/\p{M}+/gu, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+
+  // Ein Begriff ganz ohne lateinische Zeichen ergäbe eine leere Kennung – und
+  // eine leere Kennung ist als React-Key nicht eindeutig. Die Ersatzform kodiert
+  // die Codepoints und bleibt damit unterscheidbar und reproduzierbar.
+  return slug || [...term].map((c) => (c.codePointAt(0) ?? 0).toString(36)).join("-");
 }
 
 
