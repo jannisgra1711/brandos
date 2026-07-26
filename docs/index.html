@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BrandOS</title>
+<meta name="description" content="BrandOS — privates Werkzeug zur Marktrecherche im E-Commerce.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #5c5c5c; --rule: #e2e2e2; --accent: #7a3b1f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #16181a; --fg: #e8e6e3; --muted: #a0a0a0; --rule: #2e3134; --accent: #d99a6c; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 4rem 1.25rem;
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 34rem; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 .5rem; letter-spacing: -.01em; }
+  p { color: var(--muted); }
+  ul { list-style: none; padding: 0; margin: 2.5rem 0 0; border-top: 1px solid var(--rule); }
+  li { border-bottom: 1px solid var(--rule); }
+  a { color: var(--accent); text-decoration: none; display: block; padding: .9rem .1rem; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<main>
+  <h1>BrandOS</h1>
+  <p>
+    Privates, nicht-kommerzielles Werkzeug zur Marktrecherche im E-Commerce.
+    Es läuft auf dem Rechner seines Betreibers und wird nicht als Dienst
+    angeboten. Diese Seiten existieren nur, weil API-Anbieter sie verlangen.
+  </p>
+  <ul>
+    <li><a href="privacy/">Datenschutzerklärung · Privacy Policy</a></li>
+    <li><a href="https://github.com/jannisgra1711/brandos">Quelltext auf GitHub</a></li>
+  </ul>
+</main>
+</body>
+</html>

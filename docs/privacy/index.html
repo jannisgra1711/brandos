@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — BrandOS</title>
+<meta name="description" content="Privacy policy for BrandOS, a private, locally run e-commerce research tool.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #5c5c5c;
+    --rule: #e2e2e2;
+    --accent: #7a3b1f;
+    --code-bg: #f4f4f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181a;
+      --fg: #e8e6e3;
+      --muted: #a0a0a0;
+      --rule: #2e3134;
+      --accent: #d99a6c;
+      --code-bg: #232629;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 3rem 1.25rem 6rem;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  main { max-width: 44rem; margin: 0 auto; }
+  h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 .35rem; letter-spacing: -.01em; }
+  h2 {
+    font-size: 1.15rem; margin: 2.75rem 0 .75rem;
+    padding-top: 1.25rem; border-top: 1px solid var(--rule);
+  }
+  h3 { font-size: 1rem; margin: 1.75rem 0 .5rem; }
+  p, li { color: var(--fg); }
+  ul { padding-left: 1.25rem; }
+  li { margin: .35rem 0; }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); padding: .1em .35em;
+    border-radius: 3px; font-size: .9em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .meta { color: var(--muted); font-size: .9rem; margin: 0 0 2rem; }
+  .lang { font-size: .9rem; margin: 0 0 2.5rem; color: var(--muted); }
+  .lead {
+    border-left: 3px solid var(--accent);
+    padding: .1rem 0 .1rem 1rem; margin: 1.5rem 0 2rem;
+  }
+  .table-wrap { overflow-x: auto; margin: 1rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; min-width: 30rem; }
+  th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; }
+  footer { margin-top: 4rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .875rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Privacy Policy — BrandOS</h1>
+<p class="meta">Last updated: 27 July 2026</p>
+<p class="lang"><a href="#deutsch">Deutsche Fassung weiter unten &darr;</a></p>
+
+<p class="lead">
+  BrandOS collects no data about you. It has no user accounts, sets no cookies,
+  runs no analytics, and is not reachable from the internet. This page exists
+  because API providers require a privacy policy — and because the honest answer
+  deserves to be written down rather than assumed.
+</p>
+
+<h2>1. What BrandOS is</h2>
+<p>
+  BrandOS is a private e-commerce market research tool. It is operated by one
+  person, for that person's own use, on that person's own computer. It runs at
+  <code>localhost</code> and is not published, not hosted, and not offered to
+  anyone else. There is no sign-up, because there is nobody to sign up.
+</p>
+<p>
+  The source code is public at
+  <a href="https://github.com/jannisgra1711/brandos">github.com/jannisgra1711/brandos</a>.
+  Every statement on this page can be checked against it.
+</p>
+
+<h2>2. Controller</h2>
+<p>
+  Responsible under Art. 4(7) GDPR:<br>
+  Jannis Grajczyk<br>
+  Email: <a href="mailto:jannis.grajczyk@gmail.com">jannis.grajczyk@gmail.com</a>
+</p>
+<p>
+  This is a private, non-commercial project. There is no company behind it.
+</p>
+
+<h2>3. Data collected from visitors or users</h2>
+<p><strong>None.</strong> Specifically, BrandOS does not:</p>
+<ul>
+  <li>offer user accounts, logins, or authentication of any kind;</li>
+  <li>set cookies or write to <code>localStorage</code>;</li>
+  <li>run analytics, tracking pixels, session recording, or advertising;</li>
+  <li>load fonts, scripts, or images from third-party servers;</li>
+  <li>accept connections from the internet — it binds to the local machine only.</li>
+</ul>
+<p>
+  This page itself is served as static HTML by GitHub Pages and loads no external
+  resources. GitHub may log requests to it under
+  <a href="https://docs.github.com/site-policy/privacy-policies/github-privacy-statement">its own privacy statement</a>;
+  that is outside the operator's control and no such data is received or used.
+</p>
+
+<h2>4. Data BrandOS stores</h2>
+<p>
+  BrandOS stores the market analyses the operator runs: the search term entered,
+  the market signals retrieved for it, and the resulting score. These are written
+  as JSON files to a <code>.data/</code> directory on the operator's own computer.
+</p>
+<p>
+  There is no database, no cloud storage, no backup service, and no transmission
+  of these files anywhere. They contain market data about product categories —
+  terms such as "enamel mug" or "bikepacking" — and no personal data about any
+  person.
+</p>
+
+<h2>5. Third parties BrandOS contacts</h2>
+<p>
+  To retrieve market data, BrandOS sends the operator's own search term to the
+  following services. Nothing else is sent — no identifiers, no profile, no
+  personal data.
+</p>
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr><th>Service</th><th>What is sent</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>SerpAPI</td><td>the search term</td><td>Google Trends and eBay market data</td></tr>
+    <tr><td>Etsy Open API v3</td><td>the search term</td><td>listing counts, prices, listing age</td></tr>
+    <tr><td>Pinterest API</td><td>the search term</td><td>aggregate trend and audience signals — <em>planned, see section 6</em></td></tr>
+    <tr><td>Anthropic API</td><td>the aggregated market signals</td><td>optional written interpretation — <em>currently disabled, see below</em></td></tr>
+  </tbody>
+</table>
+</div>
+<p>
+  The Anthropic connection is switched off. BrandOS runs in
+  <code>heuristic</code> mode and no API key is configured; the opportunity score
+  is computed deterministically without any model involvement. Should this ever
+  be enabled, only aggregate market signals would be sent — never personal data.
+</p>
+
+<h2>6. Pinterest data</h2>
+<p>
+  BrandOS has applied for Pinterest API access. The integration is not built yet;
+  this section states in advance what it will and will not do, and is binding on
+  it.
+</p>
+<p><strong>What would be requested:</strong> aggregate, non-personal market signals only —</p>
+<ul>
+  <li>keyword and trend data for a product category;</li>
+  <li>audience characteristics expressed as <em>shares of an aggregate</em>, for
+      example "42&nbsp;% of interest in this category comes from segment X";</li>
+  <li>aggregate design signals: dominant colour palettes, recurring motifs, and
+      how often each appears.</li>
+</ul>
+<p><strong>What would never be requested, stored, or processed:</strong></p>
+<ul>
+  <li>data about identifiable Pinterest users — no names, no profiles, no user IDs;</li>
+  <li>individual pins, boards, or the activity of any person;</li>
+  <li>anything permitting a person to be singled out or re-identified.</li>
+</ul>
+<p><strong>How it would be handled:</strong> responses are cached on the
+  operator's local disk for 12 hours and then discarded. Aggregate values that
+  enter a stored analysis remain in that local file until the operator deletes
+  it. Pinterest data is never shared, never sold, never combined with data from
+  another source to build a profile, and never leaves the operator's machine.
+  It is used for one purpose: the operator's own product research.
+</p>
+<p>
+  If the built integration ever needs more than the above, this page is updated
+  before that code is used.
+</p>
+
+<h2>7. Retention</h2>
+<ul>
+  <li><strong>Analyses:</strong> kept until the operator deletes them. Deletion is
+      available in the application and removes the file from disk.</li>
+  <li><strong>Provider response cache:</strong> 12 hours, then discarded.</li>
+  <li><strong>Visitor data:</strong> none exists, so none is retained.</li>
+</ul>
+
+<h2>8. Disclosure to others</h2>
+<p>
+  None. No data is sold, rented, shared, or disclosed to any third party. There
+  are no processors, no advertising partners, and no analytics vendors. The only
+  outbound traffic is the requests listed in section&nbsp;5.
+</p>
+
+<h2>9. Your rights</h2>
+<p>
+  Under Art. 15–21 GDPR you have the right to access, rectification, erasure,
+  restriction, data portability, and objection, and the right to lodge a
+  complaint with a supervisory authority. Because no personal data is collected,
+  there is in practice nothing to disclose or erase — but any such request is
+  answered at the address in section&nbsp;2.
+</p>
+
+<h2>10. Changes</h2>
+<p>
+  Changes are published on this page with a new date. The full revision history
+  is public in the
+  <a href="https://github.com/jannisgra1711/brandos/commits/main/docs/privacy/index.html">repository</a>.
+</p>
+
+<hr style="border:0;border-top:1px solid var(--rule);margin:4rem 0 0">
+
+<h1 id="deutsch" style="margin-top:3rem">Datenschutzerklärung — BrandOS</h1>
+<p class="meta">Stand: 27. Juli 2026</p>
+
+<p class="lead">
+  BrandOS erhebt keine Daten über dich. Es gibt keine Nutzerkonten, keine Cookies,
+  keine Analyse-Werkzeuge, und die Anwendung ist aus dem Internet nicht
+  erreichbar. Diese Seite existiert, weil API-Anbieter eine Datenschutzerklärung
+  verlangen — und weil die ehrliche Antwort es verdient, aufgeschrieben statt
+  vorausgesetzt zu werden.
+</p>
+
+<h2>1. Was BrandOS ist</h2>
+<p>
+  BrandOS ist ein privates Werkzeug zur Marktrecherche im E-Commerce. Es wird von
+  einer Person betrieben, für deren eigenen Gebrauch, auf deren eigenem Rechner.
+  Es läuft unter <code>localhost</code>, ist nicht veröffentlicht, nicht gehostet
+  und wird niemandem angeboten. Eine Registrierung gibt es nicht, weil es niemanden
+  gibt, der sich registrieren könnte.
+</p>
+<p>
+  Der Quelltext ist öffentlich unter
+  <a href="https://github.com/jannisgra1711/brandos">github.com/jannisgra1711/brandos</a>.
+  Jede Aussage auf dieser Seite lässt sich dort nachprüfen.
+</p>
+
+<h2>2. Verantwortlicher</h2>
+<p>
+  Verantwortlich im Sinne von Art. 4 Nr. 7 DSGVO:<br>
+  Jannis Grajczyk<br>
+  E-Mail: <a href="mailto:jannis.grajczyk@gmail.com">jannis.grajczyk@gmail.com</a>
+</p>
+<p>
+  Es handelt sich um ein privates, nicht-kommerzielles Projekt. Dahinter steht
+  kein Unternehmen.
+</p>
+
+<h2>3. Daten, die von Besuchern oder Nutzern erhoben werden</h2>
+<p><strong>Keine.</strong> Im Einzelnen verzichtet BrandOS auf:</p>
+<ul>
+  <li>Nutzerkonten, Anmeldung oder Authentifizierung jeder Art;</li>
+  <li>Cookies und Einträge im <code>localStorage</code>;</li>
+  <li>Analyse-Werkzeuge, Zählpixel, Sitzungsaufzeichnung und Werbung;</li>
+  <li>Schriften, Skripte oder Bilder von fremden Servern;</li>
+  <li>Verbindungen aus dem Internet — die Anwendung lauscht nur lokal.</li>
+</ul>
+<p>
+  Diese Seite selbst wird als statisches HTML von GitHub Pages ausgeliefert und
+  lädt keine externen Ressourcen. GitHub kann Zugriffe darauf nach
+  <a href="https://docs.github.com/site-policy/privacy-policies/github-privacy-statement">eigener Datenschutzerklärung</a>
+  protokollieren; das liegt außerhalb des Einflusses des Betreibers, und solche
+  Daten werden weder empfangen noch verwendet.
+</p>
+
+<h2>4. Daten, die BrandOS speichert</h2>
+<p>
+  BrandOS speichert die Analysen, die der Betreiber durchführt: den eingegebenen
+  Suchbegriff, die dazu abgerufenen Marktsignale und den daraus berechneten Score.
+  Sie werden als JSON-Dateien in einem Verzeichnis <code>.data/</code> auf dem
+  Rechner des Betreibers abgelegt.
+</p>
+<p>
+  Es gibt keine Datenbank, keinen Cloud-Speicher, keinen Sicherungsdienst und
+  keine Übertragung dieser Dateien an irgendeinen Ort. Sie enthalten Marktdaten
+  zu Produktkategorien — Begriffe wie „Emaille Tasse" oder „Bikepacking" — und
+  keine personenbezogenen Daten.
+</p>
+
+<h2>5. Dritte, die BrandOS kontaktiert</h2>
+<p>
+  Um Marktdaten abzurufen, sendet BrandOS den Suchbegriff des Betreibers an die
+  folgenden Dienste. Mehr wird nicht übermittelt — keine Kennungen, kein Profil,
+  keine personenbezogenen Daten.
+</p>
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr><th>Dienst</th><th>Was übermittelt wird</th><th>Wozu</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>SerpAPI</td><td>der Suchbegriff</td><td>Marktdaten aus Google Trends und eBay</td></tr>
+    <tr><td>Etsy Open API v3</td><td>der Suchbegriff</td><td>Angebotszahlen, Preise, Listing-Alter</td></tr>
+    <tr><td>Pinterest API</td><td>der Suchbegriff</td><td>aggregierte Trend- und Zielgruppensignale — <em>geplant, siehe Abschnitt 6</em></td></tr>
+    <tr><td>Anthropic API</td><td>die aggregierten Marktsignale</td><td>optionale Textinterpretation — <em>derzeit abgeschaltet, siehe unten</em></td></tr>
+  </tbody>
+</table>
+</div>
+<p>
+  Die Anbindung an Anthropic ist abgeschaltet. BrandOS läuft im Modus
+  <code>heuristic</code>, ein API-Schlüssel ist nicht hinterlegt; der Opportunity
+  Score entsteht deterministisch und ohne jede Modellbeteiligung. Würde sie je
+  aktiviert, gingen ausschließlich aggregierte Marktsignale hinaus — niemals
+  personenbezogene Daten.
+</p>
+
+<h2>6. Pinterest-Daten</h2>
+<p>
+  BrandOS hat Zugang zur Pinterest-API beantragt. Die Anbindung ist noch nicht
+  gebaut; dieser Abschnitt legt vorab fest, was sie tun wird und was nicht, und
+  bindet sie daran.
+</p>
+<p><strong>Was abgerufen würde:</strong> ausschließlich aggregierte, nicht
+  personenbezogene Marktsignale —</p>
+<ul>
+  <li>Keyword- und Trenddaten zu einer Produktkategorie;</li>
+  <li>Zielgruppenmerkmale als <em>Anteile an einer Gesamtheit</em>, etwa „42&nbsp;%
+      des Interesses an dieser Kategorie entfallen auf Segment X";</li>
+  <li>aggregierte Gestaltungssignale: vorherrschende Farbpaletten, wiederkehrende
+      Motive und deren Häufigkeit.</li>
+</ul>
+<p><strong>Was niemals abgerufen, gespeichert oder verarbeitet würde:</strong></p>
+<ul>
+  <li>Daten identifizierbarer Pinterest-Nutzer — keine Namen, keine Profile,
+      keine Nutzerkennungen;</li>
+  <li>einzelne Pins, Pinnwände oder das Verhalten einzelner Personen;</li>
+  <li>alles, was das Herausgreifen oder Wiedererkennen einer Person erlaubt.</li>
+</ul>
+<p><strong>Wie damit umgegangen würde:</strong> Antworten werden 12 Stunden lang
+  auf der lokalen Platte des Betreibers zwischengespeichert und danach verworfen.
+  Aggregierte Werte, die in eine gespeicherte Analyse eingehen, bleiben in dieser
+  lokalen Datei, bis der Betreiber sie löscht. Pinterest-Daten werden nicht
+  weitergegeben, nicht verkauft, nicht mit Daten anderer Quellen zu einem Profil
+  verbunden und verlassen den Rechner des Betreibers nicht. Sie dienen einem
+  einzigen Zweck: der eigenen Produktrecherche des Betreibers.
+</p>
+<p>
+  Sollte die gebaute Anbindung je mehr als das Vorstehende benötigen, wird diese
+  Seite aktualisiert, bevor der Code zum Einsatz kommt.
+</p>
+
+<h2>7. Speicherdauer</h2>
+<ul>
+  <li><strong>Analysen:</strong> bis der Betreiber sie löscht. Das Löschen steht
+      in der Anwendung zur Verfügung und entfernt die Datei von der Platte.</li>
+  <li><strong>Antwort-Cache der Quellen:</strong> 12 Stunden, danach verworfen.</li>
+  <li><strong>Besucherdaten:</strong> existieren nicht, werden folglich auch nicht
+      aufbewahrt.</li>
+</ul>
+
+<h2>8. Weitergabe an Dritte</h2>
+<p>
+  Findet nicht statt. Es werden keine Daten verkauft, vermietet, geteilt oder an
+  Dritte offengelegt. Es gibt keine Auftragsverarbeiter, keine Werbepartner und
+  keine Analyse-Dienstleister. Der einzige ausgehende Verkehr sind die in
+  Abschnitt&nbsp;5 aufgeführten Abrufe.
+</p>
+
+<h2>9. Deine Rechte</h2>
+<p>
+  Nach Art. 15–21 DSGVO stehen dir Auskunft, Berichtigung, Löschung,
+  Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch zu, ebenso
+  das Beschwerderecht bei einer Aufsichtsbehörde. Da keine personenbezogenen
+  Daten erhoben werden, gibt es praktisch nichts, worüber Auskunft zu erteilen
+  oder was zu löschen wäre — jede entsprechende Anfrage wird gleichwohl unter der
+  Anschrift aus Abschnitt&nbsp;2 beantwortet.
+</p>
+
+<h2>10. Änderungen</h2>
+<p>
+  Änderungen werden auf dieser Seite mit neuem Datum veröffentlicht. Die
+  vollständige Versionsgeschichte ist im
+  <a href="https://github.com/jannisgra1711/brandos/commits/main/docs/privacy/index.html">Repository</a>
+  öffentlich einsehbar.
+</p>
+
+<footer>
+  BrandOS — privates, nicht-kommerzielles Einzelplatz-Werkzeug.
+  <a href="https://github.com/jannisgra1711/brandos">Quelltext auf GitHub</a>
+</footer>
+
+</main>
+</body>
+</html>
