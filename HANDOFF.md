@@ -3,7 +3,8 @@
 **Generated**: 2026-07-27
 **Branch**: `main`, Working Tree sauber, synchron mit `origin/main` (dieser Commit)
 **Remote**: https://github.com/jannisgra1711/brandos — **öffentlich**
-**Status**: Ready for Review — lauffähig, gebaut, 279 Tests grün. Drei echte Datenquellen live.
+**Status**: Ready for Review — lauffähig, gebaut, 308 Tests grün. Drei echte Datenquellen live,
+Phase 2 begonnen (siehe [ROADMAP.md](ROADMAP.md)).
 
 ## Goal
 
@@ -18,6 +19,17 @@ Google Trends und eBay an. Diese Sitzung hat Etsy angebunden und — wichtiger �
 **sichtbar gemacht, welcher Teil des Scores gemessen ist und welcher erfunden**.
 
 ## Completed
+
+### Phase 2, Schritt A — das Vorhaben
+
+- [x] **`ProductProject`** — eigene Entität mit eigenem Repository. Eine Analyse
+      ist ein Messprotokoll (unveränderlich), ein Vorhaben wird bearbeitet.
+- [x] **Übernehmen** aus der Ideenliste, Übersicht `/projects`, Vorhabenseite mit
+      Fortschritt, Titel und Notizen
+- [x] **`json-store.ts`** — Schreibkette und atomares Schreiben liegen jetzt an
+      einer Stelle statt zweimal nebeneinander
+- [x] **Roadmap für Phase 2** in [ROADMAP.md](ROADMAP.md), inkl. drei Befunde,
+      die den Zuschnitt bestimmen (siehe *Key Decisions*)
 
 ### Diese Sitzung (Fortsetzung)
 
@@ -169,6 +181,9 @@ Messergebnis im Kopfkommentar von
 | **Gemessene Quellen verdrängen synthetische, je Signal** | Ein Mock ist ein Platzhalter für eine fehlende Quelle, kein gleichberechtigter Zeuge. Ihn in eine echte Messung einzumischen macht die Messung schlechter, nicht die Schätzung besser. **Je Signal, nicht je Lauf** — eine echte Nachfrage darf eine synthetische Zielgruppe nicht mit hinauswerfen, dort gibt es keine Alternative. |
 | **Konfidenz zählt Gewicht, nicht Quellen** | Fünf Mocks, die nichts beitragen, machen einen Score nicht synthetisch. Seit der Verdrängung antworten sie weiter, ohne zu tragen. `dataQuality` beschreibt jetzt nur die *Erhebung*; der Abzug für Erfundenes passiert im Scoring, wo `syntheticWeight` bekannt ist. |
 | **Sättigung aus der breitesten Trefferzahl** | Sie setzt Angebot ins Verhältnis zur Nachfrage, und die Nachfrage wird über den *gesamten* Suchmarkt erhoben. `listingCount` ist die Zahl des Leitmarkts: Etsy meldet für „Emaille Tasse" 243, eBay 25.000. Beide stimmen, sie messen verschiedene Märkte. 243 als Marktgröße zu lesen ergäbe „nahezu unbesetzt" bei 25.000 Angeboten. **Nicht summiert** — Marktplätze überschneiden sich. |
+| **Das Vorhaben referenziert die Analyse, es kopiert sie nicht** | Eingefrorene Marktdaten würden stillschweigend veralten. Mit reisen nur `term`, `market` und `origin` – Letzteres bewusst: Es ist die Grundlage, auf der entschieden wurde, und macht einen späteren Abgleich erst möglich. Wird die Analyse gelöscht, bleibt das Vorhaben aussagefähig. |
+| **Der Projektstatus beschreibt den Verkäufer, nicht das Werkzeug** | `idee/entwurf/bereit/eingestellt/verworfen` sagt, wo *er* steht – auch wenn der Schritt ausserhalb von BrandOS passiert. Status wie „bewertet" oder „listing" hätten Funktionen versprochen, die es nicht gibt. |
+| **Modellpflichtige Funktionen fehlen, statt zu degradieren** | Für Phase 2 vorgesehen (D, E): Ohne `ANTHROPIC_API_KEY` erscheinen sie nicht, statt eine schwache Ersatzantwort zu geben. Eine regelbasierte Designkritik wäre wertlos – die Fortschreibung von „Nicht Messbares bleibt leer". |
 | **Eine Marktplatz-Kategorie ordnet ein, sie bewertet nicht** | Die Anteile sind gemessen, die *Zahl* der Kategorien ist ein Artefakt von Etsys Abteilungslogik. Ein Signal, das nur teilweise trägt, gehört dorthin, wo es trägt: in die Beschreibung. Deshalb `category` als eigenes Signal statt `productTypes`, ohne Score-Eingang und ohne Weg in erzeugte Texte. |
 | **Die Einordnung ist keine eigene Capability** | Sie fällt aus derselben Listing-Stichprobe ab wie `competition`. Eine neunte Capability hätte den Nenner von `coverage` vergrössert und damit die Konfidenz **jeder** Analyse gesenkt — eine Nebenwirkung, die mit dem Signal nichts zu tun hat. |
 | **Lieber `imputed` als ein Mock** | `products` hat jetzt gar keine Quelle. Der Faktor wird neutral bewertet und senkt die Konfidenz, statt eine Zahl zu liefern, die niemand gemessen hat. Eine Lücke, die man sieht, ist besser als eine Zahl, die man glaubt. |
@@ -242,6 +257,9 @@ ist kein Produktmarkt.
 | `src/components/analysis/factor-breakdown.tsx` | Wo die Herkunft sichtbar wird: `geschätzt` / `synthetisch X %` / unmarkiert plus Quellennennung. |
 | `scripts/check-etsy-key.mjs` | Prüft die Etsy-Zugangsdaten gegen `openapi-ping`, ohne Analyse und ohne den Schlüssel auszugeben. |
 | `scripts/rebuild-index.mjs` | `npm run rebuild-index` — stellt `.data/index.json` aus den Analysedateien wieder her. **Nicht neben einem laufenden Dev-Server.** |
+| `ROADMAP.md` | **Phase 2**: der Weg von der Chance zum verkaufsfertigen Produkt. Enthält die drei Befunde, die den Zuschnitt bestimmen – insbesondere, dass `signals.design` heute vollständig synthetisch ist. |
+| `src/domain/types.ts` → `ProductProject` | Die zweite Wurzel-Entität neben `MarketAnalysis`. Protokoll gegen Werkbank. |
+| `src/server/repositories/json-store.ts` | Schreibkette und atomares Schreiben, von beiden Repositories benutzt. |
 | `docs/privacy/index.html` | Datenschutzerklärung für die API-Anträge, EN + DE. **Abschnitt 6 bindet die künftige Pinterest-Anbindung**: nur Aggregate, keine identifizierbaren Nutzer, keine Pins. Braucht die Anbindung je mehr, wird erst diese Seite geändert, dann der Code. |
 | `src/server/config/env.ts` | Einziger Ort, der `process.env` liest. `etsyKey()` fügt Keystring und Secret zusammen. |
 | `scripts/alias-hooks.mjs` | Löst `@/` für den Node-Testrunner auf. **Tests nur über `npm test` starten.** |
@@ -316,7 +334,7 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
    ```bash
    npm run typecheck && npm run lint && npm test && npm run build
    ```
-   - Erwartet: keine Fehler, **279/279 Tests**, Build listet 10 Routen.
+   - Erwartet: keine Fehler, **308/308 Tests**, Build listet 14 Routen.
    - Bei TypeScript-Fehlern zu Next-Typen: `.next/` löschen, neu bauen.
 
 2. **Zugangsdaten prüfen** (kostet kein Kontingent):
@@ -343,7 +361,13 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
      Fehlt sie, kam Etsys Antwort aus einem Cache-Eintrag von **vor** der
      Einordnung — dann Dev-Server neu starten (siehe *Warnings*).
 
-5. **Weiterarbeiten** — Vorschlag nach Wert:
+5. **Weiterarbeiten** — der Fokus liegt jetzt auf dem Nutzerworkflow, nicht auf
+   der Datenbasis. Nächster Schritt laut [ROADMAP.md](ROADMAP.md): **B —
+   Listing-Werkstatt** (Titel, 13 Tags, Kategorie aus `MarketCategorySignal`,
+   Preis; die Beschreibung braucht ein Modell). Danach **C — Mockups**, die gar
+   keins brauchen.
+
+   Zur Datenbasis, falls sie wieder aufgenommen wird:
    - **`audience`**: der einzige verbleibende Hebel (18 %, und damit *alles*,
      was noch synthetisch ist). Pinterest-Antrag läuft.
    - **Amazon über SerpAPI** steht hinten an: Der Betreiber verkauft auf Etsy,
