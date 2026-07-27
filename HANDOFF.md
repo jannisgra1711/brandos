@@ -3,7 +3,7 @@
 **Generated**: 2026-07-27
 **Branch**: `main`, Working Tree sauber, synchron mit `origin/main` (dieser Commit)
 **Remote**: https://github.com/jannisgra1711/brandos — **öffentlich**
-**Status**: Ready for Review — lauffähig, gebaut, 263 Tests grün. Drei echte Datenquellen live.
+**Status**: Ready for Review — lauffähig, gebaut, 279 Tests grün. Drei echte Datenquellen live.
 
 ## Goal
 
@@ -20,6 +20,18 @@ Google Trends und eBay an. Diese Sitzung hat Etsy angebunden und — wichtiger �
 ## Completed
 
 ### Diese Sitzung (Fortsetzung)
+
+- [x] **Etsy-Taxonomie gemessen** — 3065 Knoten, 2503 Blätter, sechs Ebenen.
+      Messlauf über sechs Begriffe; Ergebnis und Grenzen im Kopfkommentar von
+      [`etsy-taxonomy.ts`](src/server/providers/live/etsy-taxonomy.ts).
+- [x] **Einordnung als eigenes Signal** (`MarketCategorySignal`) — gemessen,
+      **rein beschreibend**, kein Score-Eingang, kein erzeugter Text.
+- [x] **`products` aus dem Amazon-Mock entfernt** — der Faktor ist jetzt
+      `imputed`. **Synthetisches Gewicht 25 % → 18 %.**
+- [x] **Vorbehalt „überwiegend synthetisch" korrigiert** — er las die Zahl der
+      Mock-Quellen (57 %) statt das Gewicht (18 %) und stand damit unter einem
+      zu vier Fünfteln gemessenen Score.
+- [x] **Zwei Fehler im Taxonomie-Cache behoben**, siehe *Warnings*.
 
 - [x] **`slugify()` behält Buchstaben unter Akzenten** — `"Café Racer"` ergibt
       jetzt `cafe-racer` statt `caf-racer`. Unicode-Zerlegung **nach** der
@@ -60,8 +72,10 @@ Google Trends und eBay an. Diese Sitzung hat Etsy angebunden und — wichtiger �
       Bindung (zusammen **18 % der Gewichtung**) bleiben synthetisch. Braucht
       Reddit oder Pinterest, **beide Zugänge blockiert**. Etsy liefert es
       **nicht**, entgegen der Behauptung im vorigen HANDOFF.
-- [ ] **`products` nur aus dem Amazon-Mock** — 7 % der Gewichtung. Etsys
-      Taxonomie ist an der Sprache gescheitert (siehe *Failed Approaches*).
+- [ ] **`products` hat gar keine Quelle mehr** — 7 % der Gewichtung stehen auf
+      `imputed`. Das ist **Absicht**: Etsys Taxonomie misst keine Produktvielfalt
+      (siehe *Failed Approaches*), und der Mock ist raus. Eine echte Quelle
+      müsste Produktarten *unabhängig von der Marktplatz-Abteilung* kennen.
 - [ ] **Amazon über SerpAPI** — dritte echte Quelle für Wettbewerb und Preis.
       Bringt Robustheit, aber **keine Prozentpunkte**: Diese Signale sind seit
       Etsy ohnehin gemessen.
@@ -72,25 +86,31 @@ Google Trends und eBay an. Diese Sitzung hat Etsy angebunden und — wichtiger �
 
 ## Failed Approaches (Don't Repeat These)
 
-### Etsy-Taxonomie für Produktarten — gegen die echte API gemessen, verworfen
+### Etsy-Taxonomie als *Produktvielfalt* — zweimal geprüft, endgültig verworfen
 
-Jedes Etsy-Listing nennt seine `taxonomy_id`, und
-`GET /v3/application/seller-taxonomy/nodes` löst sie auf: **3065 Knoten, davon
-2503 Blätter**. Daraus liessen sich Anteile und Medianpreise je Produktart sauber
-messen — `share` und `medianPrice` wären echte Messwerte.
+**Die Sprache war nicht das Problem.** Die vorige Sitzung verwarf die Taxonomie,
+weil die Namen englisch sind. Der Messlauf über sechs Begriffe zeigt: Die
+auftretenden Namen sind „Mugs", „Stickers", „T-shirts", „Clocks" — die
+Schreckensbeispiele („Adult Bibs", „Belt Buckles") kamen in keinem Lauf vor. Für
+einen Etsy-Verkäufer sind das ohnehin die Labels aus dem Kategorie-Auswahlfeld.
 
-Die Namen sind jedoch **ausschliesslich englisch**: „Adult Bibs", „Aprons",
-„Belt Buckles". Ein Sprachparameter existiert nicht, und `Accept-Language: de-DE`
-ändert die Antwort **nachweislich nicht** — gegen die echte API geprüft,
-byte-gleiches Ergebnis.
+**Das Problem ist die Struktur.** Etsy teilt zuerst nach Zielgruppe, dann nach
+Produkt. „T-Shirt" liefert `T-shirts` unter fünf Pfaden und `Sports & Fitness`
+unter vier — dieselbe Ware, nach Abteilung zerlegt, mit Medianen von 4,25 bis
+31,44 USD. `scoreProductVariety` rechnet `normalize(types.length, 2, 12)`:
+15 Kategorien schlagen die Obergrenze voll durch und melden maximale Vielfalt
+für einen Markt, der aus T-Shirts besteht. **Der Faktor würde nicht ungenau,
+er würde falsch.**
 
-Diese Namen landen in deutschen Sätzen: in der Score-Begründung („führend
-\"Aprons\""), in der Signaltafel und über `productPhrase()` in Ideentiteln
-(„Belt Buckles-Hoodie"). Ein Übersetzungslexikon über 2503 Blätter wäre Handarbeit
-mit Lücken; ein Modell zur Laufzeit widerspräche der Zusage, dass der Score ohne
-Modellbeteiligung entsteht. Messergebnis steht im Kopfkommentar von
-[`src/server/providers/live/etsy.ts`](src/server/providers/live/etsy.ts).
-**Wer es erneut versucht, braucht eine Quelle mit lokalisierten Kategorienamen.**
+Dazu kommt: Etsys Relevanzsortierung zieht Angrenzendes herein („Wall Art" →
+`Clocks` 30 %, `Art Objects` 26 %), und Medianpreise je Kategorie sind nicht
+belastbar, weil die Währungen splittern (bei „Funny Mug" deckt die häufigste
+49 von 100 Listings).
+
+**Was daraus wurde:** Die Daten sind gut genug für eine *Einordnung* und zu
+schlecht für eine *Bewertung*. Genau so sind sie angebunden — `category` statt
+`productTypes`. Vollständiges Messergebnis im Kopfkommentar von
+[`etsy-taxonomy.ts`](src/server/providers/live/etsy-taxonomy.ts).
 
 ### Etsy-Zugangsdaten — zwei falsche Annahmen, beide widerlegt
 
@@ -149,6 +169,9 @@ Messergebnis im Kopfkommentar von
 | **Gemessene Quellen verdrängen synthetische, je Signal** | Ein Mock ist ein Platzhalter für eine fehlende Quelle, kein gleichberechtigter Zeuge. Ihn in eine echte Messung einzumischen macht die Messung schlechter, nicht die Schätzung besser. **Je Signal, nicht je Lauf** — eine echte Nachfrage darf eine synthetische Zielgruppe nicht mit hinauswerfen, dort gibt es keine Alternative. |
 | **Konfidenz zählt Gewicht, nicht Quellen** | Fünf Mocks, die nichts beitragen, machen einen Score nicht synthetisch. Seit der Verdrängung antworten sie weiter, ohne zu tragen. `dataQuality` beschreibt jetzt nur die *Erhebung*; der Abzug für Erfundenes passiert im Scoring, wo `syntheticWeight` bekannt ist. |
 | **Sättigung aus der breitesten Trefferzahl** | Sie setzt Angebot ins Verhältnis zur Nachfrage, und die Nachfrage wird über den *gesamten* Suchmarkt erhoben. `listingCount` ist die Zahl des Leitmarkts: Etsy meldet für „Emaille Tasse" 243, eBay 25.000. Beide stimmen, sie messen verschiedene Märkte. 243 als Marktgröße zu lesen ergäbe „nahezu unbesetzt" bei 25.000 Angeboten. **Nicht summiert** — Marktplätze überschneiden sich. |
+| **Eine Marktplatz-Kategorie ordnet ein, sie bewertet nicht** | Die Anteile sind gemessen, die *Zahl* der Kategorien ist ein Artefakt von Etsys Abteilungslogik. Ein Signal, das nur teilweise trägt, gehört dorthin, wo es trägt: in die Beschreibung. Deshalb `category` als eigenes Signal statt `productTypes`, ohne Score-Eingang und ohne Weg in erzeugte Texte. |
+| **Die Einordnung ist keine eigene Capability** | Sie fällt aus derselben Listing-Stichprobe ab wie `competition`. Eine neunte Capability hätte den Nenner von `coverage` vergrössert und damit die Konfidenz **jeder** Analyse gesenkt — eine Nebenwirkung, die mit dem Signal nichts zu tun hat. |
+| **Lieber `imputed` als ein Mock** | `products` hat jetzt gar keine Quelle. Der Faktor wird neutral bewertet und senkt die Konfidenz, statt eine Zahl zu liefern, die niemand gemessen hat. Eine Lücke, die man sieht, ist besser als eine Zahl, die man glaubt. |
 | **Index-Wiederaufbau ist ein Skript, kein Knopf** | Er ersetzt den Index als Ganzes und ist eine Reparatur, keine Funktion der Oberfläche. `rebuildIndex()` steht deshalb auch **nicht** im `AnalysisRepository`-Vertrag — ein abgeleiteter Index ist eine Eigenheit der Dateiablage, kein Versprechen der Persistenzschicht. Das Skript spricht direkt mit `JsonAnalysisRepository`. |
 | **Nicht Messbares bleibt leer, statt geschätzt zu werden** | Jede echte Quelle weiß weniger als der Mock. Sieben Felder sind optional; die UI zeigt „—". Eine Hochrechnung sähe aus wie eine Messung. |
 | **Normierungen gehören ins Scoring, nicht in den Provider** | Ein Provider meldet Messwerte. Eine Ergebnisliste kennt ihre Trefferzahl, nicht deren Verhältnis zur Nachfrage. |
@@ -168,30 +191,35 @@ Messergebnis im Kopfkommentar von
 
 ```
 google-trends   live   demand
-etsy            live   competition,pricing
+etsy            live   competition,pricing   (+ category, ohne Capability)
 ebay            live   competition,pricing
 reddit          mock   audience,keywords,discovery
 pinterest       mock   design,audience,keywords,discovery
-amazon          mock   competition,pricing,products
+amazon          mock   competition,pricing
 tiktok          mock   demand,keywords
 ```
 
-**Anteil echter Daten an der Score-Gewichtung — 75 % gemessen:**
+**Anteil echter Daten an der Score-Gewichtung — 75 % gemessen, 18 % erfunden:**
 
 | Faktor | Gewicht | Quelle |
 |---|---|---|
 | Nachfrage, Trend, Saisonales Timing | 42 % | Google Trends |
 | Wettbewerb, Marktalter, Preisspielraum | 33 % | Etsy + eBay |
 | Geschenkpotenzial, Emotionale Bindung | 18 % | **Mocks** |
-| Produktvielfalt | 7 % | **Mock** |
+| Produktvielfalt | 7 % | **keine** – `imputed`, neutral bewertet |
 
-**Referenzwerte** (26.07.2026, mit gefülltem Cache):
+**Referenzwerte** (27.07.2026, frisch gegen die APIs gemessen):
 
-| Begriff | Score | Note | synthetisch | Konfidenz |
-|---|---|---|---|---|
-| Emaille Tasse | 47,8 | C | 25 % | 0,78 |
-| Dackel | 57,6 | C | 25 % | 0,78 |
-| Bikepacking | 64,0 | B | 25 % | 0,80 |
+| Begriff | Score | Note | synthetisch | Konfidenz | Einordnung (Etsy) |
+|---|---|---|---|---|---|
+| Emaille Tasse | 47,1 | C | 18 % | 0,74 | Mugs 82 % · 8 Kategorien berührt |
+| Dackel | 63,3 | B | 18 % | 0,73 | Mugs 11 % · **45 berührt** |
+| Bikepacking | 63,0 | B | 18 % | 0,75 | Cycling Bags 24 % · 29 berührt |
+
+Die Scores sind gestiegen, weil „Produktvielfalt" nicht mehr aus dem Mock kommt,
+sondern neutral (50) bewertet wird. „Dackel" zeigt dabei, wofür die Einordnung
+gut ist: 45 berührte Kategorien mit einem Spitzenreiter bei 11 % — ein Tiername
+ist kein Produktmarkt.
 
 **Broken**: Nichts bekannt.
 
@@ -207,7 +235,8 @@ tiktok          mock   demand,keywords
 | `src/domain/types.ts` | Die Sprache des Produkts. **Sieben Felder optional**, `SignalProvenance` erklärt die Herkunftsspur, `marketListingCount` die Marktbreite. |
 | `src/domain/scoring/opportunity-score.ts` | Die 9 Faktoren. `FACTOR_SIGNAL` bildet Faktor auf Signal ab — die Grundlage der Herkunft. `scoreCompetition` leitet die Sättigung aus `marketListingCount` ab. |
 | `src/server/providers/aggregator.ts` | **`contributorsTo()` ist die zentrale Stelle**: Sie entscheidet, welche Beiträge ein Signal tragen, und wird von Zusammenführung *und* Herkunft gemeinsam benutzt. |
-| `src/server/providers/live/etsy.ts` | Einzige Quelle mit Listing-Alter. Kopfkommentar enthält das Messergebnis der verworfenen Taxonomie. |
+| `src/server/providers/live/etsy.ts` | Einzige Quelle mit Listing-Alter. |
+| `src/server/providers/live/etsy-taxonomy.ts` | Die Einordnung. Kopfkommentar enthält den **vollständigen Messlauf** über sechs Begriffe – warum die Anteile taugen und die Kategorienzahl nicht. Eigener Cache, 30 Tage. |
 | `src/server/providers/live/google-trends.ts` | Kopfkommentar enthält das Messergebnis der verworfenen Discovery-Versuche. |
 | `src/server/providers/live/ebay.ts` | Vorlage für jede neue Marktplatzquelle. |
 | `src/components/analysis/factor-breakdown.tsx` | Wo die Herkunft sichtbar wird: `geschätzt` / `synthetisch X %` / unmarkiert plus Quellennennung. |
@@ -287,7 +316,7 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
    ```bash
    npm run typecheck && npm run lint && npm test && npm run build
    ```
-   - Erwartet: keine Fehler, **263/263 Tests**, Build listet 10 Routen.
+   - Erwartet: keine Fehler, **279/279 Tests**, Build listet 10 Routen.
    - Bei TypeScript-Fehlern zu Next-Typen: `.next/` löschen, neu bauen.
 
 2. **Zugangsdaten prüfen** (kostet kein Kontingent):
@@ -307,15 +336,22 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
    ```bash
    curl -X POST localhost:3000/api/research -H "content-type: application/json" -d '{"term":"Emaille Tasse"}'
    ```
-   - Erwartet: Score um 48, `syntheticWeight` 0.25.
-   - Auf der Detailseite müssen sechs Faktoren **ohne** Markierung stehen und
-     drei mit `synthetisch`.
+   - Erwartet: Score um 47, `syntheticWeight` 0.18.
+   - Auf der Detailseite: sechs Faktoren **ohne** Markierung, zwei mit
+     `synthetisch`, „Produktvielfalt" als `geschätzt`.
+   - Die Karte „Einordnung im Marktplatz" muss `Mugs` mit rund 82 % zeigen.
+     Fehlt sie, kam Etsys Antwort aus einem Cache-Eintrag von **vor** der
+     Einordnung — dann Dev-Server neu starten (siehe *Warnings*).
 
 5. **Weiterarbeiten** — Vorschlag nach Wert:
-   - **Amazon über SerpAPI**. Vorlage: `ebay.ts`. Bringt Robustheit, keine
-     Prozentpunkte.
-   - **`audience`**: der einzige verbleibende große Hebel (18 %). Braucht Reddit
-     oder Pinterest — beide blockiert.
+   - **`audience`**: der einzige verbleibende Hebel (18 %, und damit *alles*,
+     was noch synthetisch ist). Pinterest-Antrag läuft.
+   - **Amazon über SerpAPI** steht hinten an: Der Betreiber verkauft auf Etsy,
+     und Etsys Sättigung ist die Zahl, gegen die er antritt — nicht der
+     Durchschnitt dreier Marktplätze.
+   - **Shopify ist keine Datenquelle.** Admin- und Storefront-API sprechen nur
+     über den eigenen Shop; einen marktweiten Abruf gibt es nicht. Relevant erst
+     für Erfolgsmessung, wenn dort verkauft wird.
 
 ## Setup Required
 
@@ -395,6 +431,14 @@ Formular verlangt.
 - **Discovery hat einen eigenen 15-Minuten-Cache** (`TtlCache`), unabhängig vom
   Provider-Cache. Wer Discovery-Änderungen testet, muss den Dev-Server neu
   starten. Für Tests: `resetDiscoveryCache()`.
+- **Ein Provider-Cache mit eigener Frist muss `providers.cacheTtlMs` trotzdem
+  als Schalter respektieren.** Der Taxonomie-Cache tat es zunächst nicht und
+  schrieb im Testlauf eine **leere** Taxonomie in das echte `.data/` — gültig
+  30 Tage, die Einordnung wäre still tot gewesen. `resetEtsyInfrastructure()`
+  verwirft ihn deshalb mit.
+- **Die Speicherschicht des Provider-Caches überlebt das Löschen der Datei.**
+  Wer einen Eintrag gezielt verwerfen will, muss danach den Dev-Server neu
+  starten – sonst antwortet die `Map` im Prozess weiter.
 - **`.env.local` niemals mit `Write` überschreiben** — sie enthält drei Keys.
 - **`process.exit()` neben einem offenen `AbortSignal.timeout`** lässt libuv unter
   Windows mit einer Assertion fallen. `process.exitCode` verwenden.
