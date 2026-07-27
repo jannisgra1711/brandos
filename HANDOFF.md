@@ -3,8 +3,8 @@
 **Generated**: 2026-07-27
 **Branch**: `main`, Working Tree sauber, synchron mit `origin/main` (dieser Commit)
 **Remote**: https://github.com/jannisgra1711/brandos — **öffentlich**
-**Status**: Ready for Review — lauffähig, gebaut, 308 Tests grün. Drei echte Datenquellen live,
-Phase 2 begonnen (siehe [ROADMAP.md](ROADMAP.md)).
+**Status**: Ready for Review — lauffähig, gebaut, 337 Tests grün. Drei echte Datenquellen live,
+Phase 2 Schritte A und B fertig (siehe [ROADMAP.md](ROADMAP.md)).
 
 ## Goal
 
@@ -19,6 +19,18 @@ Google Trends und eBay an. Diese Sitzung hat Etsy angebunden und — wichtiger �
 **sichtbar gemacht, welcher Teil des Scores gemessen ist und welcher erfunden**.
 
 ## Completed
+
+### Phase 2, Schritt B — die Listing-Werkstatt
+
+- [x] **Regelbasierter Entwurf** — Titel (140), Tags (13 à 20), Kategorie, Preis.
+      Ohne Modell, deterministisch, getestet.
+- [x] **Herkunft je Feld** (`ListingFieldBasis`) — Kategorie und Preis sind
+      gemessen, Titel und Tags abgeleitet, eine Handänderung sagt genau das
+      und **ersetzt den alten Vermerk**.
+- [x] **Währungswarnung** — Etsys Leitwährung ist die häufigste der
+      Trefferliste, nicht die des Marktes. Bei „Padel" kam GBP für einen
+      DE-Markt zurück. Ohne Kurse wird es benannt statt behoben.
+- [x] Etsys Grenzen werden in der Werkstatt **und** im Schema geprüft
 
 ### Phase 2, Schritt A — das Vorhaben
 
@@ -80,6 +92,13 @@ Google Trends und eBay an. Diese Sitzung hat Etsy angebunden und — wichtiger �
 
 ## Not Yet Done
 
+- [ ] **`keywords` haben keine echte Quelle** — nur reddit, pinterest und
+      tiktok, alle drei Mocks. Deshalb speist die Listing-Werkstatt ihre Tags
+      **nicht** daraus. Sobald eine echte Quelle existiert, ist
+      `buildTags()` in [`draft.ts`](src/domain/listing/draft.ts) die Stelle.
+- [ ] **`design` hat keine echte Quelle** — nur der Pinterest-Mock. Die
+      Designtafel ist vollständig synthetisch. Blockiert Phase D (siehe
+      [ROADMAP.md](ROADMAP.md) § 2.1).
 - [ ] **`audience` hat keine echte Quelle** — Geschenkpotenzial und Emotionale
       Bindung (zusammen **18 % der Gewichtung**) bleiben synthetisch. Braucht
       Reddit oder Pinterest, **beide Zugänge blockiert**. Etsy liefert es
@@ -259,6 +278,7 @@ ist kein Produktmarkt.
 | `scripts/rebuild-index.mjs` | `npm run rebuild-index` — stellt `.data/index.json` aus den Analysedateien wieder her. **Nicht neben einem laufenden Dev-Server.** |
 | `ROADMAP.md` | **Phase 2**: der Weg von der Chance zum verkaufsfertigen Produkt. Enthält die drei Befunde, die den Zuschnitt bestimmen – insbesondere, dass `signals.design` heute vollständig synthetisch ist. |
 | `src/domain/types.ts` → `ProductProject` | Die zweite Wurzel-Entität neben `MarketAnalysis`. Protokoll gegen Werkbank. |
+| `src/domain/listing/draft.ts` | Der Listing-Entwurf. Kopfkommentar hält fest, **was gemessen ist und was nicht** – und warum `signals.keywords` bewusst ungenutzt bleibt. |
 | `src/server/repositories/json-store.ts` | Schreibkette und atomares Schreiben, von beiden Repositories benutzt. |
 | `docs/privacy/index.html` | Datenschutzerklärung für die API-Anträge, EN + DE. **Abschnitt 6 bindet die künftige Pinterest-Anbindung**: nur Aggregate, keine identifizierbaren Nutzer, keine Pins. Braucht die Anbindung je mehr, wird erst diese Seite geändert, dann der Code. |
 | `src/server/config/env.ts` | Einziger Ort, der `process.env` liest. `etsyKey()` fügt Keystring und Secret zusammen. |
@@ -334,7 +354,7 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
    ```bash
    npm run typecheck && npm run lint && npm test && npm run build
    ```
-   - Erwartet: keine Fehler, **308/308 Tests**, Build listet 14 Routen.
+   - Erwartet: keine Fehler, **337/337 Tests**, Build listet 15 Routen.
    - Bei TypeScript-Fehlern zu Next-Typen: `.next/` löschen, neu bauen.
 
 2. **Zugangsdaten prüfen** (kostet kein Kontingent):
@@ -363,9 +383,9 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
 
 5. **Weiterarbeiten** — der Fokus liegt jetzt auf dem Nutzerworkflow, nicht auf
    der Datenbasis. Nächster Schritt laut [ROADMAP.md](ROADMAP.md): **B —
-   Listing-Werkstatt** (Titel, 13 Tags, Kategorie aus `MarketCategorySignal`,
-   Preis; die Beschreibung braucht ein Modell). Danach **C — Mockups**, die gar
-   keins brauchen.
+   **C — Mockups**: Design auf Produktvorlagen rechnen. Reine Bildkomposition,
+   kein Modell nötig, und die erste Funktion, die eine **Asset-Ablage** braucht
+   (`.data/` kennt bisher nur JSON).
 
    Zur Datenbasis, falls sie wieder aufgenommen wird:
    - **`audience`**: der einzige verbleibende Hebel (18 %, und damit *alles*,

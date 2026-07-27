@@ -154,7 +154,7 @@ Die Wirbelsäule. Ohne sie hat keine andere Funktion einen Ort.
 **Ergebnis:** Der Bruch nach der Analyse ist geschlossen. Noch kein neuer
 Erkenntnisgewinn, aber alles Weitere ist andockbar.
 
-### B — Listing-Werkstatt *(Modell empfohlen, Skelett auch ohne)*
+### B — Listing-Werkstatt *(Modell empfohlen, Skelett auch ohne)* — ✅ **fertig, 27.07.2026**
 
 Der unmittelbarste Nutzen. Etsys Regeln sind harte Grenzen und damit prüfbar:
 
@@ -168,6 +168,13 @@ Der unmittelbarste Nutzen. Etsys Regeln sind harte Grenzen und damit prüfbar:
 
 Titel, Tags, Kategorie und Preisvorschlag sind **regelbasiert ableitbar** — die
 Heuristik trägt hier tatsächlich. Nur die Beschreibung braucht das Modell.
+
+**Beim Bauen aufgefallen:** `signals.keywords` liefern ausschliesslich Mocks
+(reddit, pinterest, tiktok) — dasselbe Problem wie bei `design`. Etsy-Tags
+daraus zu bauen hiesse, ein Listing mit erfundenen Suchbegriffen auszuzeichnen,
+und zwar unsichtbar. Die Tags entstehen deshalb aus Suchbegriff und Bausteinen;
+jedes Feld weist seine Herkunft aus. Es werden lieber **sieben ehrliche Tags**
+vergeben als dreizehn mit Füllwörtern.
 
 Der Taxonomie-Messlauf zahlt hier zum zweiten Mal ein: Die Kategorie, die BrandOS
 für einen Begriff misst, ist genau das Feld, das der Verkäufer beim Einstellen
