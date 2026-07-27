@@ -1,11 +1,17 @@
 import "server-only";
 import { clamp, median, percentile, round } from "@/domain/math";
-import type { CompetitionSignal, EntryBarrier, PricingSignal } from "@/domain/types";
+import type {
+  CompetitionSignal,
+  EntryBarrier,
+  MarketCategorySignal,
+  PricingSignal,
+} from "@/domain/types";
 import { getConfig } from "@/server/config/env";
 import type { DataProvider, ProviderResult } from "../types";
 import { ProviderError } from "../types";
 import { createLimiter } from "../util/concurrency";
 import { CachedFailure, ProviderResponseCache } from "../util/response-cache";
+import { buildCategory, loadTaxonomy, resetTaxonomyCache } from "./etsy-taxonomy";
 
 /**
  * Etsy über die Open API v3 – der Leitmarkt für handgemachte Nischen.
@@ -36,26 +42,18 @@ import { CachedFailure, ProviderResponseCache } from "../util/response-cache";
  * nicht den Gesamtbestand. Für einen Neueinsteiger ist das die relevante
  * Grundgesamtheit – er konkurriert um die Plätze, die Käufer ansehen.
  *
- * **Produktarten aus `taxonomy_id` – geprüft und verworfen.** Jedes Listing
- * nennt seine Kategorie, und `GET /v3/application/seller-taxonomy/nodes`
- * löst sie auf: 3065 Knoten, davon 2503 Blätter. Daraus liessen sich Anteile
- * und Medianpreise je Produktart sauber messen.
+ * **Einordnung aus `taxonomy_id` – gemessen, aber nicht als Produktvielfalt.**
+ * Jedes Listing nennt seine Kategorie. Aufgelöst wird sie in
+ * [`etsy-taxonomy.ts`](./etsy-taxonomy.ts), wo auch der Messlauf steht, der
+ * die Grenzen dieser Daten festhält.
  *
- * Die Namen sind jedoch **ausschliesslich englisch**: "Adult Bibs",
- * "Aprons", "Belt Buckles". Ein Sprachparameter existiert nicht, und
- * `Accept-Language: de-DE` ändert die Antwort nachweislich nicht – gemessen
- * gegen die echte API, byte-gleiches Ergebnis. Diese Namen landen in
- * deutschen Sätzen: in der Score-Begründung ("führend \\"Aprons\\""), in der
- * Signaltafel und über `productPhrase()` in Ideentiteln
- * ("Belt Buckles-Hoodie").
+ * Kurz: Die Anteile sind echt, die *Zahl* der Kategorien ist es nicht – Etsy
+ * teilt zuerst nach Zielgruppe, dann nach Produkt, und zerlegt damit dieselbe
+ * Ware in mehrere Kategorien. Deshalb liefert diese Quelle `category` als
+ * reine Einordnung und weiterhin **kein** `productTypes`.
  *
- * Ein Übersetzungslexikon über 2503 Blätter wäre Handarbeit mit Lücken, und
- * ein Modell zur Laufzeit einzusetzen widerspräche der Zusage, dass der Score
- * ohne Modellbeteiligung entsteht. Deshalb bleibt `products` hier unbesetzt.
- * Wer es erneut versucht, braucht eine Quelle mit **lokalisierten**
- * Kategorienamen.
- *
- * Kontingent: ein Aufruf je Analyse.
+ * Kontingent: ein Aufruf je Analyse, plus **einmalig** einer für die Taxonomie
+ * (danach 30 Tage aus dem Cache).
  */
 
 const ENDPOINT = "https://openapi.etsy.com/v3/application/listings/active";
@@ -127,6 +125,9 @@ function infrastructure() {
 export function resetEtsyInfrastructure(): void {
   cache = undefined;
   limit = undefined;
+  // Der Taxonomie-Cache gehört zu dieser Quelle, auch wenn er nebenan wohnt.
+  // Ein Reset, der ihn stehen lässt, macht Tests voneinander abhängig.
+  resetTaxonomyCache();
 }
 
 export const etsyProvider: DataProvider = {
@@ -195,6 +196,7 @@ async function collect(
 
   const pricing = buildPricing(prices, currency);
   const competition = buildCompetition(listingCount, listings, pricing, context.now);
+  const category = await categoryFor(listings, apiKey, context);
 
   context.logger.debug("Etsy ausgewertet", {
     term,
@@ -202,6 +204,7 @@ async function collect(
     sample: listings.length,
     median: pricing.median,
     medianAgeDays: competition.medianListingAgeDays,
+    category: category?.categories[0]?.name,
   });
 
   return {
@@ -209,8 +212,32 @@ async function collect(
     synthetic: false,
     freshnessDays: 0,
     message: `Live-Daten von Etsy – ${listings.length} Listings ausgewertet, ${listingCount.toLocaleString("de-DE")} Treffer gesamt.`,
-    payload: { competition, pricing },
+    payload: { competition, pricing, category },
   };
+}
+
+/**
+ * Die Einordnung ist eine Beigabe, keine Bedingung.
+ *
+ * Wettbewerb und Preise stehen zu diesem Zeitpunkt bereits fest. Sie an einem
+ * zweiten Abruf scheitern zu lassen, hiesse eine gelungene Messung wegen einer
+ * Zusatzinformation wegzuwerfen. Ein Fehlschlag wird deshalb notiert, nicht
+ * geworfen – das Signal bleibt dann schlicht leer.
+ */
+async function categoryFor(
+  listings: EtsyListing[],
+  apiKey: string,
+  context: Parameters<DataProvider["fetch"]>[1],
+): Promise<MarketCategorySignal | undefined> {
+  try {
+    const taxonomy = await loadTaxonomy(apiKey, context.signal);
+    return buildCategory(listings, taxonomy);
+  } catch (error) {
+    context.logger.warn("Taxonomie nicht verfügbar – Einordnung entfällt", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return undefined;
+  }
 }
 
 // --- Abruf ----------------------------------------------------------------

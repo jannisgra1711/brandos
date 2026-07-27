@@ -8,6 +8,7 @@ import { SaveToggle } from "@/components/analysis/save-toggle";
 import { ScorePanel } from "@/components/analysis/score-panel";
 import {
   AudiencePanel,
+  CategoryPanel,
   CompetitionPanel,
   DemandPanel,
   DesignPanel,
@@ -134,6 +135,7 @@ export default async function AnalysisPage({ params }: Props) {
           <PricingPanel signals={analysis.signals} />
           <AudiencePanel signals={analysis.signals} />
           <ProductTypePanel signals={analysis.signals} />
+          <CategoryPanel signals={analysis.signals} />
           <DesignPanel signals={analysis.signals} />
           <KeywordPanel signals={analysis.signals} />
         </div>

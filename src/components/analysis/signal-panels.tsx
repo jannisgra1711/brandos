@@ -1,4 +1,4 @@
-import type { MarketSignals } from "@/domain/types";
+import type { MarketCategorySignal, MarketSignals } from "@/domain/types";
 import { BarMeter, toneForScore } from "@/components/charts/bar-meter";
 import { SeasonalityChart } from "@/components/charts/seasonality-chart";
 import { Sparkline } from "@/components/charts/sparkline";
@@ -428,6 +428,72 @@ export function ProductTypePanel({ signals }: { signals: MarketSignals }) {
             <BarMeter value={type.share * 100} className="mt-1.5" />
           </div>
         ))}
+      </CardBody>
+    </Card>
+  );
+}
+
+const MARKETPLACE_LABEL: Partial<Record<MarketCategorySignal["marketplace"], string>> = {
+  etsy: "Etsy",
+  ebay: "eBay",
+  amazon: "Amazon",
+};
+
+/**
+ * Wo der Marktplatz den Begriff einsortiert.
+ *
+ * Bewusst ohne Bewertung: keine Note, keine Farbe nach gut/schlecht, kein
+ * Eingang in den Score. Die Tafel beantwortet eine Frage – wo lande ich, wenn
+ * ich hier einstelle – und hört danach auf.
+ *
+ * Die Namen bleiben englisch und unübersetzt. Es sind Etsys eigene
+ * Bezeichnungen, dieselben, die im Kategorie-Auswahlfeld stehen; eingedeutscht
+ * wären sie nicht mehr auffindbar.
+ */
+export function CategoryPanel({ signals }: { signals: MarketSignals }) {
+  const category = signals.category;
+  if (!category) return null;
+
+  const marketplace = MARKETPLACE_LABEL[category.marketplace] ?? category.marketplace;
+  const weak = category.distinctCategories - category.categories.length;
+
+  return (
+    <Card>
+      <CardHeader
+        title="Einordnung im Marktplatz"
+        description={`Wohin ${marketplace} die Treffer sortiert – ${category.sampleSize} Listings ausgewertet.`}
+        action={<Badge>beschreibend</Badge>}
+      />
+      <CardBody className="space-y-4 pt-4">
+        <div className="space-y-3">
+          {category.categories.map((entry) => (
+            <div key={entry.path.join(" > ")}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm text-text">{entry.name}</span>
+                <span className="shrink-0 text-xs tabular-nums text-muted">
+                  {formatScore(entry.share * 100)} · {entry.listings}
+                </span>
+              </div>
+              <BarMeter value={entry.share * 100} className="mt-1.5" />
+              {/* Der Pfad steht dabei, weil derselbe Blattname bei Etsy an
+                  mehreren Stellen vorkommt – "Sports & Fitness" gibt es für
+                  Erwachsene, Kinder und Herren getrennt. */}
+              <p className="mt-1 text-xs text-faint">{entry.path.join(" › ")}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="border-t border-border pt-4 text-xs leading-relaxed text-muted">
+          {weak > 0 ? (
+            <>
+              Die Stichprobe berührte {category.distinctCategories} Kategorien;{" "}
+              {category.categories.length} davon {category.categories.length === 1 ? "trägt" : "tragen"}{" "}
+              mindestens 5 %. Der Rest sind Einzeltreffer der Relevanzsortierung.{" "}
+            </>
+          ) : null}
+          Eine Kategorienzahl ist <strong>keine Produktvielfalt</strong>: {marketplace} teilt zuerst
+          nach Zielgruppe, dann nach Produkt. Diese Angaben gehen deshalb in keinen Score-Faktor ein.
+        </p>
       </CardBody>
     </Card>
   );

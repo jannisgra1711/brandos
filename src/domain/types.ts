@@ -80,6 +80,7 @@ export const PROVENANCE_KEYS = [
   "design",
   "keywords",
   "productTypes",
+  "category",
 ] as const;
 
 export type ProvenanceKey = (typeof PROVENANCE_KEYS)[number];
@@ -303,6 +304,56 @@ export interface ProductTypeSignal {
   growth90d?: number;
 }
 
+/**
+ * Wo ein Marktplatz den Markt einsortiert.
+ *
+ * Getrennt von `ProductTypeSignal`, und das ist der Kern: Eine Marktplatz-
+ * Taxonomie beschreibt **nicht**, wie vielfältig ein Markt ist. Etsy teilt
+ * zuerst nach Zielgruppe, dann nach Produkt – „Sports & Fitness" existiert
+ * unter Adult, Kids' und Men's als drei verschiedene Kategorien. Diese Zahl
+ * als Produktvielfalt zu lesen hiesse, dieselbe Ware dreimal zu zählen.
+ *
+ * Dieses Signal ist deshalb **Klassifizierung, keine Bewertung**: Es geht in
+ * keinen Score-Faktor ein und in keinen erzeugten Text. Es sagt, wo der
+ * Marktplatz den Begriff verortet und wie eindeutig – mehr nicht.
+ *
+ * Die Namen stehen in der Sprache des Marktplatzes, bei Etsy also englisch.
+ * Ein Sprachparameter existiert dort nicht. Für einen Verkäufer ist das kein
+ * Mangel: Es sind die Bezeichnungen aus dem Kategorie-Auswahlfeld, das er
+ * beim Einstellen selbst ausfüllt.
+ */
+export interface MarketCategorySignal {
+  /** Marktplatz, dessen Taxonomie das ist. */
+  marketplace: SourceId;
+  /** Belastbare Kategorien, größter Anteil zuerst. */
+  categories: MarketCategory[];
+  /**
+   * Wie viele Kategorien die Stichprobe insgesamt berührte – auch die zu
+   * schwachen. Der Abstand zu `categories.length` ist die Streuung: Bei
+   * „Wall Art" berührte die Stichprobe zwölf Kategorien, sechs davon
+   * belastbar, die stärkste mit 30 %. Das ist ein diffuser Begriff, und
+   * genau das soll man sehen.
+   */
+  distinctCategories: number;
+  /** Anzahl ausgewerteter Listings, auf die sich die Anteile beziehen. */
+  sampleSize: number;
+}
+
+export interface MarketCategory {
+  /** Blattname beim Marktplatz, z. B. "Mugs". */
+  name: string;
+  /**
+   * Voller Pfad von der Wurzel, z. B.
+   * `["Home & Living", "Kitchen & Dining", "Drink & Barware", "Drinkware", "Mugs"]`.
+   * Nötig zur Unterscheidung: Derselbe Blattname kommt an mehreren Stellen vor.
+   */
+  path: string[];
+  /** Anteil an der Stichprobe, 0..1. */
+  share: number;
+  /** Absolute Zahl der Listings – ohne sie ist ein Anteil nicht einzuordnen. */
+  listings: number;
+}
+
 export interface DataQuality {
   /** Anteil abgedeckter Capabilities, 0..1. */
   coverage: number;
@@ -330,6 +381,8 @@ export interface MarketSignals {
   design?: DesignSignal;
   keywords: KeywordSignal[];
   productTypes: ProductTypeSignal[];
+  /** Einordnung des Marktes durch den Marktplatz. Rein beschreibend. */
+  category?: MarketCategorySignal;
   dataQuality: DataQuality;
   /**
    * Herkunft je Signal. Optional, weil vor der Einführung gespeicherte

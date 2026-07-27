@@ -134,12 +134,89 @@ describe("etsyProvider – Deklaration", () => {
   });
 });
 
+describe("etsyProvider – Einordnung", () => {
+  const TAXONOMY = {
+    results: [
+      {
+        id: 1,
+        name: "Home & Living",
+        full_path_taxonomy_ids: [1],
+        children: [{ id: 2, name: "Mugs", full_path_taxonomy_ids: [1, 2], children: [] }],
+      },
+    ],
+  };
+
+  it("ordnet die Treffer in die Taxonomie des Marktplatzes ein", async () => {
+    withKey();
+    const restore = stubFetch((url) =>
+      url.includes("seller-taxonomy")
+        ? { body: TAXONOMY }
+        : { body: { count: 900, results: sample(100).map((l) => ({ ...l, taxonomy_id: 2 })) } },
+    );
+
+    try {
+      const result = await etsyProvider.fetch(QUERY, context());
+      const category = result.payload.category;
+
+      assert.equal(category?.marketplace, "etsy");
+      assert.equal(category?.categories[0]?.name, "Mugs");
+      assert.equal(category?.categories[0]?.share, 1);
+      assert.deepEqual(category?.categories[0]?.path, ["Home & Living", "Mugs"]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("liefert weiterhin Wettbewerb und Preise, wenn die Taxonomie ausfällt", async () => {
+    // Die Einordnung ist eine Beigabe. Eine gelungene Messung wegen einer
+    // Zusatzinformation wegzuwerfen wäre der teuerste mögliche Fehlschlag –
+    // die Trefferliste ist zu diesem Zeitpunkt längst bezahlt.
+    withKey();
+    const restore = stubFetch((url) =>
+      url.includes("seller-taxonomy")
+        ? { status: 503, body: { error: "Taxonomie gerade nicht verfügbar" } }
+        : { body: { count: 900, results: sample(100).map((l) => ({ ...l, taxonomy_id: 2 })) } },
+    );
+
+    try {
+      const result = await etsyProvider.fetch(QUERY, context());
+
+      assert.equal(result.payload.category, undefined);
+      assert.ok(result.payload.competition, "Wettbewerb fehlt");
+      assert.ok(result.payload.pricing, "Preise fehlen");
+      assert.equal(result.synthetic, false);
+    } finally {
+      restore();
+    }
+  });
+
+  it("ordnet nichts ein, wenn kein Listing eine bekannte Kategorie nennt", async () => {
+    withKey();
+    const restore = stubFetch((url) =>
+      url.includes("seller-taxonomy")
+        ? { body: TAXONOMY }
+        : { body: { count: 900, results: sample(100) } },
+    );
+
+    try {
+      const result = await etsyProvider.fetch(QUERY, context());
+      // Lieber keine Einordnung als eine erfundene.
+      assert.equal(result.payload.category, undefined);
+      assert.ok(result.payload.competition);
+    } finally {
+      restore();
+    }
+  });
+});
+
 describe("etsyProvider – Anfrage", () => {
   it("sortiert nach Relevanz und schöpft das Limit aus", async () => {
     withKey();
     let requested = "";
     const restore = stubFetch((url) => {
-      requested = url;
+      // Die Quelle ruft zwei Endpunkte: die Trefferliste und – für die
+      // Einordnung – die Taxonomie. Geprüft wird hier die Trefferliste.
+      if (url.includes("/listings/active")) requested = url;
       return { body: { count: 900, results: sample(100) } };
     });
 

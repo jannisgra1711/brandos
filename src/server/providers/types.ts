@@ -5,6 +5,7 @@ import type {
   DemandSignal,
   DesignSignal,
   KeywordSignal,
+  MarketCategorySignal,
   MarketQuery,
   OpportunityKind,
   PricingSignal,
@@ -34,6 +35,16 @@ export interface ProviderPayload {
   design?: DesignSignal;
   keywords?: KeywordSignal[];
   productTypes?: ProductTypeSignal[];
+  /**
+   * Einordnung durch die Taxonomie des Marktplatzes.
+   *
+   * Bewusst **keine eigene Capability**: Die Kategorien fallen aus derselben
+   * Listing-Stichprobe wie `competition` ab, sind also kein zusätzlicher
+   * Erhebungsgegenstand. Eine neunte Capability würde ausserdem den Nenner
+   * von `coverage` vergrössern und damit die Konfidenz jeder Analyse senken –
+   * eine Nebenwirkung, die mit dem Signal nichts zu tun hat.
+   */
+  category?: MarketCategorySignal;
 }
 
 export interface ProviderContext {

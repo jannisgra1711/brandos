@@ -101,6 +101,10 @@ export async function collectSignals(
     design: pickBest(contributions, "design"),
     keywords: mergeKeywords(contributions),
     productTypes: mergeProductTypes(contributions),
+    // Übernommen, nicht gemischt: Zwei Marktplätze haben verschiedene
+    // Taxonomien, und ein Mittelwert über fremde Kategoriebäume ergäbe eine
+    // Einordnung, die es bei keinem der beiden gibt.
+    category: pickBest(contributions, "category"),
     dataQuality: assessQuality(sources, contributions),
     provenance: buildProvenance(contributions),
   };
