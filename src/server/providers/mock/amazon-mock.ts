@@ -11,11 +11,20 @@ import { jitter, maybeFail, simulateLatency } from "./mock-base";
  * dem Etsy-Niveau. Der Aggregator gewichtet die Quelle bei Preisen daher
  * niedriger als den handgemachten Marktplatz – sie korrigiert nach unten,
  * dominiert aber nicht.
+ *
+ * **Ohne `products`, seit die Taxonomie gemessen ist.** Diese Quelle war der
+ * letzte Träger von `productTypes` und damit der Grund, warum „Produktvielfalt"
+ * mit 7 % der Gewichtung auf einer erfundenen Zahl stand. Die Messung an Etsys
+ * Taxonomie hat gezeigt, dass eine Marktplatz-Kategorisierung *keine*
+ * Produktvielfalt misst (siehe `etsy-taxonomy.ts`) – ein Ersatz existiert
+ * also nicht. Der Faktor wird seitdem als `imputed` geführt: Er senkt die
+ * Konfidenz, statt einen Wert vorzutäuschen. Eine Lücke, die man sieht, ist
+ * besser als eine Zahl, die man glaubt.
  */
 export const amazonMockProvider: DataProvider = {
   id: "amazon",
   label: "Amazon (Mock)",
-  capabilities: ["competition", "pricing", "products"],
+  capabilities: ["competition", "pricing"],
   kind: "mock",
   priority: 8,
   isAvailable: () => true,
@@ -51,7 +60,6 @@ export const amazonMockProvider: DataProvider = {
           top10SharePct: Math.min(70, round(fixture.competition.top10SharePct + rng.range(4, 12), 1)),
           entryBarrier: "high",
         },
-        productTypes: fixture.productTypes.slice(0, 4),
       },
     };
   },
