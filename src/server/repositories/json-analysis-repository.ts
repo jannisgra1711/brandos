@@ -1,9 +1,10 @@
 import "server-only";
-import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AnalysisSummary, MarketAnalysis } from "@/domain/types";
 import { getConfig } from "@/server/config/env";
 import { logger } from "@/server/logging/logger";
+import { createWriteChain, isNotFound, isSafeId, writeAtomic } from "./json-store";
 import type { AnalysisRepository, ListOptions } from "./types";
 
 /**
@@ -37,12 +38,8 @@ export class JsonAnalysisRepository implements AnalysisRepository {
   private readonly analysesDir: string;
   private readonly indexPath: string;
 
-  /**
-   * Serialisiert Schreibzugriffe. Node.js ist single-threaded, aber
-   * `await` zwischen Lesen und Schreiben des Index erlaubt Verschränkung –
-   * ohne diese Kette gehen bei parallelen Analysen Einträge verloren.
-   */
-  private writeChain: Promise<unknown> = Promise.resolve();
+  /** Siehe `createWriteChain` – ohne sie gehen bei parallelen Analysen Einträge verloren. */
+  private readonly enqueue = createWriteChain();
 
   constructor(dataDir?: string) {
     // turbopackIgnore verhindert, dass der Bundler den dynamischen Pfad als
@@ -202,22 +199,7 @@ export class JsonAnalysisRepository implements AnalysisRepository {
   }
 
   private async writeIndex(index: IndexFile): Promise<void> {
-    await mkdir(this.root, { recursive: true });
-
-    // Atomar schreiben: erst vollständig daneben, dann in einem Zug an die
-    // richtige Stelle. `rename` ersetzt die Zieldatei ohne Zwischenzustand –
-    // ein Absturz hinterlässt entweder den alten oder den neuen Index, nie
-    // einen halben und nie gar keinen.
-    const tmp = `${this.indexPath}.tmp`;
-    await writeFile(tmp, JSON.stringify(index, null, 2), "utf8");
-    await rename(tmp, this.indexPath);
-  }
-
-  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const result = this.writeChain.then(operation, operation);
-    // Fehler dürfen die Kette nicht unterbrechen.
-    this.writeChain = result.catch(() => undefined);
-    return result;
+    await writeAtomic(this.indexPath, JSON.stringify(index, null, 2));
   }
 }
 
@@ -238,11 +220,3 @@ export function toSummary(analysis: MarketAnalysis): AnalysisSummary {
   };
 }
 
-/** Verhindert Pfad-Traversal über manipulierte IDs. */
-function isSafeId(id: string): boolean {
-  return /^[a-zA-Z0-9_-]{1,64}$/.test(id);
-}
-
-function isNotFound(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
-}
