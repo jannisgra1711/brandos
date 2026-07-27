@@ -596,6 +596,8 @@ export interface ProductProject {
   suggestedPriceRange: PriceRange;
   /** Freitext des Verkäufers. */
   notes?: string;
+  /** Der Listing-Entwurf, sobald er erzeugt wurde. Danach frei bearbeitbar. */
+  listing?: ListingDraft;
   /**
    * Was Analyse und Idee im Moment der Übernahme sagten – bewusst eingefroren.
    *
@@ -614,6 +616,61 @@ export interface ProductProject {
   };
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Etsys harte Grenzen für ein Listing.
+ *
+ * Keine Empfehlungen, sondern Ablehngründe: Wer sie überschreitet, bekommt das
+ * Listing nicht eingestellt. Sie stehen hier, damit die Werkstatt schon beim
+ * Entwerfen prüfen kann, statt es Etsy sagen zu lassen.
+ */
+export const ETSY_LIMITS = {
+  titleMaxLength: 140,
+  maxTags: 13,
+  /** Je Tag. Etsy zählt Zeichen, nicht Wörter. */
+  tagMaxLength: 20,
+} as const;
+
+/**
+ * Woraus ein Feld des Entwurfs entstanden ist.
+ *
+ * Dasselbe Prinzip wie `SignalProvenance` beim Score: Ein Titel, der aus einer
+ * Messung stammt, darf nicht aussehen wie einer, der aus einem Mock stammt.
+ * Für ein Listing ist das besonders heikel – es geht nach draussen.
+ */
+export interface ListingFieldBasis {
+  /** Ein Satz: woraus dieses Feld entstand. */
+  rationale: string;
+  /** Beitragende Quellen, soweit gemessen. Leer heisst: abgeleitet, nicht erhoben. */
+  sources: SourceId[];
+  /** true, wenn ein synthetisches Signal beigetragen hat. */
+  synthetic: boolean;
+}
+
+export type ListingField = "title" | "tags" | "category" | "price" | "description";
+
+/**
+ * Ein Etsy-Listing im Entwurf.
+ *
+ * Bewusst **kein** Veröffentlichungsobjekt: Etsy einzustellen braucht OAuth2
+ * mit `listings_w`-Scope, nicht den vorhandenen App-Schlüssel. Der Entwurf
+ * endet beim Übertragen von Hand.
+ *
+ * `description` fehlt, solange kein Modell konfiguriert ist. Ein regelbasierter
+ * Beschreibungstext wäre unverkäuflich – ein leeres Feld ist ehrlicher als ein
+ * schlechtes.
+ */
+export interface ListingDraft {
+  title: string;
+  tags: string[];
+  /** Etsys eigene Kategorie – englisch, weil es das Auswahlfeld auch ist. */
+  category?: { name: string; path: string[] };
+  price?: { value: number; currency: string };
+  description?: string;
+  /** Herkunft je Feld. Fehlt ein Eintrag, gibt es das Feld nicht. */
+  basis: Partial<Record<ListingField, ListingFieldBasis>>;
+  generatedAt: string;
 }
 
 /** Kompakte Form für die Übersicht. */
