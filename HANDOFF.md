@@ -1,7 +1,7 @@
 # Handoff: BrandOS — drei echte Quellen, Herkunft je Faktor
 
 **Generated**: 2026-07-27
-**Branch**: `main`, Working Tree sauber, synchron mit `origin/main` (`93e7df7`)
+**Branch**: `main`, Working Tree sauber, synchron mit `origin/main` (dieser Commit)
 **Remote**: https://github.com/jannisgra1711/brandos — **öffentlich**
 **Status**: Ready for Review — lauffähig, gebaut, 263 Tests grün. Drei echte Datenquellen live.
 
@@ -195,7 +195,7 @@ tiktok          mock   demand,keywords
 
 **Broken**: Nichts bekannt.
 
-**Uncommitted Changes**: Keine. `HEAD == origin/main == 93e7df7`.
+**Uncommitted Changes**: Keine.
 
 **Kontingent**: `.data/provider-cache/` enthält Antworten für `google-trends`,
 `ebay` und `etsy`, 12 h gültig. Etsy kostet **einen** Aufruf je Analyse.
@@ -213,6 +213,7 @@ tiktok          mock   demand,keywords
 | `src/components/analysis/factor-breakdown.tsx` | Wo die Herkunft sichtbar wird: `geschätzt` / `synthetisch X %` / unmarkiert plus Quellennennung. |
 | `scripts/check-etsy-key.mjs` | Prüft die Etsy-Zugangsdaten gegen `openapi-ping`, ohne Analyse und ohne den Schlüssel auszugeben. |
 | `scripts/rebuild-index.mjs` | `npm run rebuild-index` — stellt `.data/index.json` aus den Analysedateien wieder her. **Nicht neben einem laufenden Dev-Server.** |
+| `docs/privacy/index.html` | Datenschutzerklärung für die API-Anträge, EN + DE. **Abschnitt 6 bindet die künftige Pinterest-Anbindung**: nur Aggregate, keine identifizierbaren Nutzer, keine Pins. Braucht die Anbindung je mehr, wird erst diese Seite geändert, dann der Code. |
 | `src/server/config/env.ts` | Einziger Ort, der `process.env` liest. `etsyKey()` fügt Keystring und Secret zusammen. |
 | `scripts/alias-hooks.mjs` | Löst `@/` für den Node-Testrunner auf. **Tests nur über `npm test` starten.** |
 
@@ -331,6 +332,14 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
 **Zugangsdaten nie in den Chat schreiben.** `.gitignore` deckt `.env*` außer
 `.env.example` ab.
 
+**Offener Handgriff für den Pinterest-Antrag:** GitHub Pages ist noch nicht
+aktiviert. Settings → Pages → *Deploy from a branch* → `main` / `/docs`. Erst
+danach antworten
+`https://jannisgra1711.github.io/brandos/` und `…/brandos/privacy/`; vorher
+liefern beide „Site not found". Die Startseite unter `/docs/index.html` ist als
+Homepage-Angabe gedacht — eine andere URL als die Policy, was Pinterests
+Formular verlangt.
+
 **Stand der API-Anträge** (privater, nicht-kommerzieller Einzelplatzbetrieb):
 
 | Quelle | Stand |
@@ -338,7 +347,7 @@ function contributorsTo(contributions: Contribution[], key: PayloadKey): Contrib
 | SerpAPI | ✅ aktiv — Google Trends, eBay, (Amazon möglich) |
 | Etsy | ✅ aktiv — Personal Access |
 | Reddit | ❌ Selbstregistrierung seit Nov 2025 geschlossen |
-| Pinterest | ❌ Trial nach Review, Standard braucht Video-Demo |
+| Pinterest | ⏳ **Antrag läuft** — Datenschutzerklärung liegt unter `docs/`, GitHub Pages muss der Betreiber noch aktivieren (siehe unten) |
 | TikTok | ❌ Research API nur akademisch/non-profit |
 | Amazon direkt | ❌ PA-API eingestellt Mai 2026; SerpAPI ist der Weg |
 
