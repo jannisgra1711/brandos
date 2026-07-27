@@ -77,11 +77,30 @@ function buildSummary(signals: MarketSignals, score: OpportunityScore): string {
   return parts.join(" ");
 }
 
+/**
+ * Ob der Score überwiegend auf Erfundenem steht.
+ *
+ * Maßgeblich ist `score.syntheticWeight` – der Anteil am **Gewicht**, nicht
+ * `dataQuality.syntheticShare`, der bloss antwortende Mock-Quellen abzählt.
+ * Seit gemessene Quellen die synthetischen verdrängen, antworten Mocks auch
+ * dann noch, wenn sie zum Ergebnis nichts beitragen: Bei „Emaille Tasse"
+ * meldeten vier von sieben Quellen synthetisch (57 %), während 18 % des
+ * Gewichts erfunden waren. Das Urteil sagte „überwiegend synthetisch" über
+ * einen Score, der zu vier Fünfteln gemessen war.
+ *
+ * Fehlt `syntheticWeight`, bleibt nur das Abzählen: Vor der Einführung der
+ * Herkunftsspur gespeicherte Analysen führen den Wert nicht, und eine 0
+ * anzunehmen hiesse, ihnen eine Messung zu unterstellen, die niemand geprüft
+ * hat.
+ */
+function mostlySynthetic(signals: MarketSignals, score: OpportunityScore): boolean {
+  return (score.syntheticWeight ?? signals.dataQuality.syntheticShare) > 0.5;
+}
+
 function buildVerdict(signals: MarketSignals, score: OpportunityScore): string {
-  const caveat =
-    signals.dataQuality.syntheticShare > 0.5
-      ? " Grundlage sind überwiegend synthetische Daten – vor einer Investition mit echten Quellen validieren."
-      : "";
+  const caveat = mostlySynthetic(signals, score)
+    ? " Grundlage sind überwiegend synthetische Daten – vor einer Investition mit echten Quellen validieren."
+    : "";
 
   if (score.value >= 75) {
     return `Klare Chance: Nachfrage und Wettbewerbslage stehen günstig zueinander, ein Einstieg ist jetzt vertretbar.${caveat}`;
@@ -433,7 +452,7 @@ function buildActions(signals: MarketSignals, score: OpportunityScore): string[]
     );
   }
 
-  if (signals.dataQuality.syntheticShare > 0.5) {
+  if (mostlySynthetic(signals, score)) {
     actions.push("Echte Datenquellen anbinden, bevor Budget gebunden wird.");
   }
 

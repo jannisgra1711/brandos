@@ -540,11 +540,8 @@ describe("heuristicAnalyst – Urteil und Warnungen", () => {
 
   it("weist überwiegend synthetische Daten im Urteil aus", async () => {
     const result = await heuristicAnalyst.interpret({
-      signals: signals({
-        demand: demand(),
-        dataQuality: { ...QUALITY, syntheticShare: 0.71 },
-      }),
-      score: score(),
+      signals: signals({ demand: demand() }),
+      score: score({ syntheticWeight: 0.71 }),
     });
 
     assert.match(result.verdict, /synthetische Daten/);
@@ -552,6 +549,40 @@ describe("heuristicAnalyst – Urteil und Warnungen", () => {
       result.recommendedActions.some((a) => /Echte Datenquellen anbinden/.test(a)),
       "und empfiehlt, sie zu ersetzen",
     );
+  });
+
+  it("misst den Vorbehalt am Gewicht, nicht an der Zahl der Mock-Quellen", async () => {
+    // Der Fall aus dem Betrieb: vier von sieben Quellen antworten synthetisch,
+    // tragen aber nur 18 % des Gewichts, weil gemessene Quellen sie verdrängt
+    // haben. „Überwiegend synthetisch" wäre über einen zu vier Fünfteln
+    // gemessenen Score schlicht falsch.
+    const result = await heuristicAnalyst.interpret({
+      signals: signals({
+        demand: demand(),
+        dataQuality: { ...QUALITY, syntheticShare: 0.57 },
+      }),
+      score: score({ syntheticWeight: 0.18 }),
+    });
+
+    assert.doesNotMatch(result.verdict, /synthetische Daten/);
+    assert.ok(
+      !result.recommendedActions.some((a) => /Echte Datenquellen anbinden/.test(a)),
+      "und empfiehlt nichts, was schon geschehen ist",
+    );
+  });
+
+  it("zählt weiter Quellen, wenn eine alte Analyse kein Gewicht mitbringt", async () => {
+    // Vor der Herkunftsspur gespeicherte Analysen führen `syntheticWeight`
+    // nicht. Eine 0 anzunehmen hiesse, ihnen eine Messung zu unterstellen.
+    const result = await heuristicAnalyst.interpret({
+      signals: signals({
+        demand: demand(),
+        dataQuality: { ...QUALITY, syntheticShare: 0.71 },
+      }),
+      score: score({ syntheticWeight: undefined }),
+    });
+
+    assert.match(result.verdict, /synthetische Daten/);
   });
 
   it("warnt bei dünner Datengrundlage", async () => {
