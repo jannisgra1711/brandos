@@ -10,7 +10,14 @@ import {
   setAnalysisRepository,
   setProjectRepository,
 } from "@/server/repositories";
-import { createProjectFromIdea, getProject, listProjects, updateProject } from "./project-service";
+import {
+  createProjectFromIdea,
+  editListing,
+  generateListing,
+  getProject,
+  listProjects,
+  updateProject,
+} from "./project-service";
 
 /**
  * Die Übernahme ist der Übergang von Erkenntnis zu Arbeit. Abgesichert wird,
@@ -181,6 +188,106 @@ describe("createProjectFromIdea", () => {
 
     assert.notEqual(a.id, b.id);
     assert.equal((await listProjects()).length, 2);
+  });
+});
+
+describe("generateListing", () => {
+  beforeEach(async () => {
+    const { getAnalysisRepository } = await import("@/server/repositories");
+    await getAnalysisRepository().save(analysis());
+  });
+
+  async function withProject() {
+    const project = await createProjectFromIdea({ analysisId: "analyse-1", ideaId: "idee-1" });
+    if (typeof project === "string") throw new Error(project);
+    return project;
+  }
+
+  it("legt den Entwurf am Vorhaben ab", async () => {
+    const project = await withProject();
+    const updated = await generateListing(project.id);
+
+    assert.ok(updated?.listing, "kein Entwurf entstanden");
+    assert.ok(updated.listing.title.length > 0);
+    assert.ok(updated.listing.tags.length > 0);
+  });
+
+  it("erzeugt auch dann einen Entwurf, wenn die Analyse gelöscht wurde", async () => {
+    const project = await withProject();
+    const { getAnalysisRepository } = await import("@/server/repositories");
+    await getAnalysisRepository().remove("analyse-1");
+
+    const updated = await generateListing(project.id);
+
+    assert.ok(updated?.listing);
+    // Ohne Analyse gibt es keine gemessene Kategorie – und keine erfundene.
+    assert.equal(updated.listing.category, undefined);
+  });
+
+  it("ersetzt einen bestehenden Entwurf vollständig", async () => {
+    const project = await withProject();
+    await generateListing(project.id);
+    await editListing(project.id, { title: "Von Hand" });
+
+    const regenerated = await generateListing(project.id);
+
+    assert.notEqual(regenerated?.listing?.title, "Von Hand");
+    assert.notEqual(regenerated?.listing?.basis.title?.rationale, "Von Hand geändert.");
+  });
+
+  it("meldet nichts zurück, wenn es das Vorhaben nicht gibt", async () => {
+    assert.equal(await generateListing("gibt-es-nicht"), undefined);
+  });
+});
+
+describe("editListing", () => {
+  beforeEach(async () => {
+    const { getAnalysisRepository } = await import("@/server/repositories");
+    await getAnalysisRepository().save(analysis());
+  });
+
+  async function withListing() {
+    const created = await createProjectFromIdea({ analysisId: "analyse-1", ideaId: "idee-1" });
+    if (typeof created === "string") throw new Error(created);
+    const updated = await generateListing(created.id);
+    if (!updated) throw new Error("kein Entwurf");
+    return updated;
+  }
+
+  it("übernimmt den geänderten Wert", async () => {
+    const project = await withListing();
+    const updated = await editListing(project.id, { title: "Handgeschriebener Titel" });
+
+    assert.notEqual(typeof updated, "string");
+    if (typeof updated === "string" || !updated) throw new Error("nicht geändert");
+    assert.equal(updated.listing?.title, "Handgeschriebener Titel");
+  });
+
+  it("ersetzt die Herkunft des geänderten Feldes", async () => {
+    // Sonst behauptete der Vermerk eine Ableitung, die für diesen Wert nie
+    // stattgefunden hat.
+    const project = await withListing();
+    const updated = await editListing(project.id, { title: "Handgeschrieben" });
+    if (typeof updated === "string" || !updated) throw new Error("nicht geändert");
+
+    assert.equal(updated.listing?.basis.title?.rationale, "Von Hand geändert.");
+    assert.deepEqual(updated.listing?.basis.title?.sources, []);
+  });
+
+  it("lässt die Herkunft unangetasteter Felder stehen", async () => {
+    const project = await withListing();
+    const before = project.listing?.basis.price;
+    const updated = await editListing(project.id, { title: "Nur der Titel" });
+    if (typeof updated === "string" || !updated) throw new Error("nicht geändert");
+
+    assert.deepEqual(updated.listing?.basis.price, before);
+  });
+
+  it("meldet, wenn es noch keinen Entwurf gibt", async () => {
+    const created = await createProjectFromIdea({ analysisId: "analyse-1", ideaId: "idee-1" });
+    if (typeof created === "string") throw new Error(created);
+
+    assert.equal(await editListing(created.id, { title: "x" }), "no-listing");
   });
 });
 

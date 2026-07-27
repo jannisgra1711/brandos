@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import type { ProductProject, ProjectStatus, ProjectSummary } from "@/domain/types";
+import { buildListingDraft } from "@/domain/listing";
+import type { ListingDraft, ProductProject, ProjectStatus, ProjectSummary } from "@/domain/types";
 import { logger } from "@/server/logging/logger";
 import { getAnalysisRepository, getProjectRepository, type ProjectListOptions } from "@/server/repositories";
 
@@ -89,6 +90,82 @@ export function updateProject(
   changes: Partial<Pick<ProductProject, "title" | "status" | "notes" | "composition">>,
 ): Promise<ProductProject | undefined> {
   return getProjectRepository().update(id, changes);
+}
+
+/**
+ * Erzeugt den Listing-Entwurf neu.
+ *
+ * Die Signale kommen aus der Ursprungsanalyse, wenn es sie noch gibt. Fehlt
+ * sie, entsteht trotzdem ein Entwurf – nur ohne gemessene Kategorie und mit
+ * dem Preiskorridor der Idee statt dem Median des Marktes. Was fehlt, steht
+ * anschliessend in `basis`.
+ *
+ * Ein bestehender Entwurf wird **ersetzt**, auch von Hand geänderte Felder.
+ * Deshalb ist das eine ausdrückliche Handlung und passiert nie nebenbei.
+ */
+export async function generateListing(
+  projectId: string,
+  now = new Date(),
+): Promise<ProductProject | undefined> {
+  const project = await getProjectRepository().findById(projectId);
+  if (!project) return undefined;
+
+  const analysis = await getAnalysisRepository().findById(project.analysisId);
+
+  const listing = buildListingDraft({ project, signals: analysis?.signals, now });
+
+  logger.child("projects").info("Listing-Entwurf erzeugt", {
+    id: project.id,
+    grounded: analysis !== undefined,
+    tags: listing.tags.length,
+  });
+
+  return getProjectRepository().update(projectId, { listing }, now);
+}
+
+/** Welche Felder von Hand geändert werden dürfen. */
+export interface ListingEdit {
+  title?: string;
+  tags?: string[];
+  description?: string;
+  price?: { value: number; currency: string };
+}
+
+/**
+ * Ändert einzelne Felder des Entwurfs.
+ *
+ * **Eine Handänderung ersetzt die Herkunft des Feldes.** Der alte Vermerk
+ * beschriebe sonst eine Ableitung, die für den neuen Wert nie stattgefunden
+ * hat – und ein von Hand geschriebener Titel sähe aus, als käme er aus einer
+ * Messung. Das ist genau die Verwechslung, die das Produkt vermeidet.
+ */
+export async function editListing(
+  projectId: string,
+  edit: ListingEdit,
+  now = new Date(),
+): Promise<ProductProject | undefined | "no-listing"> {
+  const project = await getProjectRepository().findById(projectId);
+  if (!project) return undefined;
+  if (!project.listing) return "no-listing";
+
+  const listing: ListingDraft = { ...project.listing, basis: { ...project.listing.basis } };
+
+  for (const field of ["title", "tags", "description", "price"] as const) {
+    if (edit[field] === undefined) continue;
+
+    if (field === "title") listing.title = edit.title as string;
+    if (field === "tags") listing.tags = edit.tags as string[];
+    if (field === "description") listing.description = edit.description;
+    if (field === "price") listing.price = edit.price;
+
+    listing.basis[field] = {
+      rationale: "Von Hand geändert.",
+      sources: [],
+      synthetic: false,
+    };
+  }
+
+  return getProjectRepository().update(projectId, { listing }, now);
 }
 
 export function deleteProject(id: string): Promise<boolean> {

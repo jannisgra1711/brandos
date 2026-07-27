@@ -62,7 +62,7 @@ export interface ProjectRepository {
    */
   update(
     id: string,
-    changes: Partial<Pick<ProductProject, "title" | "status" | "notes" | "composition">>,
+    changes: Partial<Pick<ProductProject, "title" | "status" | "notes" | "composition" | "listing">>,
     now?: Date,
   ): Promise<ProductProject | undefined>;
   remove(id: string): Promise<boolean>;

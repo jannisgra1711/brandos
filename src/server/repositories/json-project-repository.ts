@@ -96,7 +96,7 @@ export class JsonProjectRepository implements ProjectRepository {
 
   async update(
     id: string,
-    changes: Partial<Pick<ProductProject, "title" | "status" | "notes" | "composition">>,
+    changes: Partial<Pick<ProductProject, "title" | "status" | "notes" | "composition" | "listing">>,
     now = new Date(),
   ): Promise<ProductProject | undefined> {
     if (!isSafeId(id)) return undefined;
