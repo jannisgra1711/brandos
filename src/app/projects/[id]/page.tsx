@@ -3,12 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import type { IdeaComposition } from "@/domain/types";
+import { ListingWorkshop } from "@/components/projects/listing-workshop";
 import { ProjectWorkbench } from "@/components/projects/project-workbench";
 import { StatusBadge } from "@/components/projects/status";
 import { GradeBadge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/section";
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
+import { resolveAnalyst } from "@/server/ai";
 import { getAnalysisSummary } from "@/server/services/history-service";
 import { getProject } from "@/server/services/project-service";
 
@@ -68,7 +70,14 @@ export default async function ProjectPage({ params }: Props) {
       />
 
       <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
-        <ProjectWorkbench project={project} />
+        <div className="space-y-6">
+          <ListingWorkshop
+            projectId={project.id}
+            listing={project.listing}
+            modelAvailable={resolveAnalyst().id !== "heuristic"}
+          />
+          <ProjectWorkbench project={project} />
+        </div>
 
         <aside className="space-y-6">
           <Card>
