@@ -477,24 +477,32 @@ export interface Insight {
   evidence: string[];
 }
 
+/** Die Bausteine, aus denen eine Idee kombiniert wurde. */
+export interface IdeaComposition {
+  niche: string;
+  productType: string;
+  audience: string;
+  emotion: string;
+  style: string;
+  differentiator: string;
+}
+
+export interface PriceRange {
+  min: number;
+  max: number;
+  currency: string;
+}
+
 export interface ProductIdea {
   id: string;
   title: string;
-  /** Die Bausteine, aus denen die Idee kombiniert wurde. */
-  composition: {
-    niche: string;
-    productType: string;
-    audience: string;
-    emotion: string;
-    style: string;
-    differentiator: string;
-  };
+  composition: IdeaComposition;
   rationale: string;
   /** 0..100 – geschätztes Potenzial der konkreten Idee. */
   potential: number;
   /** 0..100 – wie stark hebt sich die Idee vom Bestandsangebot ab? */
   distinctiveness: number;
-  suggestedPriceRange: { min: number; max: number; currency: string };
+  suggestedPriceRange: PriceRange;
   risks: string[];
 }
 
@@ -538,6 +546,91 @@ export interface AnalysisSummary {
   verdict: string;
   trend: TrendDirection;
   saved: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Vorhaben
+// ---------------------------------------------------------------------------
+
+/**
+ * Der Fortschritt eines Vorhabens.
+ *
+ * Beschreibt, wo der **Verkäufer** steht – nicht, welches Werkzeug in BrandOS
+ * zuletzt lief. Das ist Absicht: Der Status muss auch dann etwas bedeuten,
+ * wenn ein Schritt ausserhalb passiert, und er darf keine Funktion versprechen,
+ * die es noch nicht gibt.
+ */
+export const PROJECT_STATUSES = [
+  "idee",
+  "entwurf",
+  "bereit",
+  "eingestellt",
+  "verworfen",
+] as const;
+
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+/**
+ * Ein Produktvorhaben.
+ *
+ * Eine `MarketAnalysis` ist ein Messprotokoll: unveränderlich, an einen
+ * Zeitpunkt gebunden. Ein Produkt in Arbeit ist das Gegenteil – es wird
+ * bearbeitet, wechselt den Zustand und überlebt die Analyse, aus der es kam.
+ * Deshalb eine eigene Entität statt eines Feldes an der Analyse.
+ *
+ * **Referenz statt Kopie**: `analysisId` verweist auf die Analyse. Wird sie
+ * gelöscht, bleibt das Vorhaben bestehen; `term` und `market` sind das, was es
+ * dann noch über seinen Ursprung weiss. Die Marktdaten mitzukopieren hiesse,
+ * sie einzufrieren und stillschweigend veralten zu lassen.
+ */
+export interface ProductProject {
+  id: string;
+  /** Die Analyse, aus der das Vorhaben entstand. Kann verschwinden. */
+  analysisId: string;
+  term: string;
+  market: string;
+  /** Frei bearbeitbar, anfangs der Titel der übernommenen Idee. */
+  title: string;
+  status: ProjectStatus;
+  composition: IdeaComposition;
+  suggestedPriceRange: PriceRange;
+  /** Freitext des Verkäufers. */
+  notes?: string;
+  /**
+   * Was Analyse und Idee im Moment der Übernahme sagten – bewusst eingefroren.
+   *
+   * Anders als die Marktdaten gehört das hierher: Es ist die Grundlage, auf der
+   * die Entscheidung fiel. Ein späterer Abgleich mit der Analyse zeigt dann,
+   * ob sich der Markt seitdem bewegt hat.
+   */
+  origin: {
+    ideaId: string;
+    score: number;
+    grade: OpportunityGrade;
+    /** 0..100 – Potenzial der Idee laut Ideengenerator. */
+    potential: number;
+    /** 0..100 – Abhebung vom Bestandsangebot. */
+    distinctiveness: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Kompakte Form für die Übersicht. */
+export interface ProjectSummary {
+  id: string;
+  /** Mitgeführt, damit „schon übernommen?" den Index nicht verlassen muss. */
+  analysisId: string;
+  /** Die Idee, aus der es entstand. Der Titel taugt nicht dafür – er ist bearbeitbar. */
+  ideaId: string;
+  title: string;
+  term: string;
+  status: ProjectStatus;
+  productType: string;
+  score: number;
+  grade: OpportunityGrade;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------

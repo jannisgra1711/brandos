@@ -1,4 +1,10 @@
-import type { AnalysisSummary, MarketAnalysis } from "@/domain/types";
+import type {
+  AnalysisSummary,
+  MarketAnalysis,
+  ProductProject,
+  ProjectStatus,
+  ProjectSummary,
+} from "@/domain/types";
 
 /**
  * Persistenz-Vertrag.
@@ -32,4 +38,42 @@ export interface ListOptions {
   savedOnly?: boolean;
   /** Freitextfilter auf den Suchbegriff. */
   term?: string;
+}
+
+/**
+ * Persistenz-Vertrag für Vorhaben.
+ *
+ * Getrennt vom Analyse-Repository, weil die beiden gegensätzliche Naturen
+ * haben: Eine Analyse wird geschrieben und danach nur noch gelesen, ein
+ * Vorhaben wird fortlaufend verändert. Ein gemeinsamer Vertrag müsste beides
+ * zugleich versprechen und wäre für keins von beiden ehrlich.
+ */
+export interface ProjectRepository {
+  save(project: ProductProject): Promise<void>;
+  findById(id: string): Promise<ProductProject | undefined>;
+  /** Zuletzt bearbeitete zuerst. Verworfene bleiben ohne Zutun aussen vor. */
+  list(options?: ProjectListOptions): Promise<ProjectSummary[]>;
+  /** Vorhaben, die aus einer bestimmten Analyse entstanden sind. */
+  listByAnalysis(analysisId: string): Promise<ProjectSummary[]>;
+  /**
+   * Ändert die bearbeitbaren Felder und setzt `updatedAt`. Was nicht in
+   * `changes` steht, bleibt – insbesondere `origin`, `analysisId` und
+   * `createdAt`, die das Vorhaben nicht über sich selbst ändern darf.
+   */
+  update(
+    id: string,
+    changes: Partial<Pick<ProductProject, "title" | "status" | "notes" | "composition">>,
+    now?: Date,
+  ): Promise<ProductProject | undefined>;
+  remove(id: string): Promise<boolean>;
+  count(status?: ProjectStatus): Promise<number>;
+}
+
+export interface ProjectListOptions {
+  limit?: number;
+  offset?: number;
+  /** Genau ein Status. Setzt die Vorauswahl ausser Kraft. */
+  status?: ProjectStatus;
+  /** Verworfene mitführen. Ohne dieses Flag bleiben sie aussen vor. */
+  includeDiscarded?: boolean;
 }

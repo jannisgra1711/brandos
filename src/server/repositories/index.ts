@@ -1,9 +1,16 @@
 import "server-only";
 import { JsonAnalysisRepository } from "./json-analysis-repository";
-import type { AnalysisRepository } from "./types";
+import { JsonProjectRepository } from "./json-project-repository";
+import type { AnalysisRepository, ProjectRepository } from "./types";
 
-export type { AnalysisRepository, ListOptions } from "./types";
+export type {
+  AnalysisRepository,
+  ListOptions,
+  ProjectListOptions,
+  ProjectRepository,
+} from "./types";
 export { JsonAnalysisRepository, toSummary } from "./json-analysis-repository";
+export { JsonProjectRepository } from "./json-project-repository";
 
 /**
  * Zusammensetzung der Persistenzschicht.
@@ -21,4 +28,16 @@ export function getAnalysisRepository(): AnalysisRepository {
 /** Nur für Tests. */
 export function setAnalysisRepository(repository: AnalysisRepository | undefined): void {
   instance = repository;
+}
+
+let projects: ProjectRepository | undefined;
+
+export function getProjectRepository(): ProjectRepository {
+  projects ??= new JsonProjectRepository();
+  return projects;
+}
+
+/** Nur für Tests. */
+export function setProjectRepository(repository: ProjectRepository | undefined): void {
+  projects = repository;
 }
