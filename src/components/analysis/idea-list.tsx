@@ -1,5 +1,6 @@
 import type { ProductIdea } from "@/domain/types";
 import { BarMeter, toneForScore } from "@/components/charts/bar-meter";
+import { TakeIdea } from "@/components/projects/take-idea";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/format";
@@ -20,7 +21,17 @@ const COMPOSITION_LABELS: Record<keyof ProductIdea["composition"], string> = {
  * nachvollziehbar, dass die Idee aus einer Kombination entstanden ist – und
  * der Nutzer kann einzelne Bausteine gedanklich austauschen.
  */
-export function IdeaList({ ideas }: { ideas: ProductIdea[] }) {
+export function IdeaList({
+  ideas,
+  analysisId,
+  takenByIdea = {},
+}: {
+  ideas: ProductIdea[];
+  /** Fehlt sie, wird nicht zum Übernehmen eingeladen – etwa in Vorschauen. */
+  analysisId?: string;
+  /** Wie oft je Idee bereits ein Vorhaben entstand. */
+  takenByIdea?: Record<string, number>;
+}) {
   if (ideas.length === 0) {
     return (
       <EmptyState
@@ -71,6 +82,19 @@ export function IdeaList({ ideas }: { ideas: ProductIdea[] }) {
                 </li>
               ))}
             </ul>
+          ) : null}
+
+          {/* Der Knopf sitzt unten und ist die einzige Aktion der Karte –
+              alles darüber ist Entscheidungsgrundlage. `mt-auto` hält ihn in
+              Karten unterschiedlicher Höhe auf einer Linie. */}
+          {analysisId ? (
+            <div className="mt-auto">
+              <TakeIdea
+                analysisId={analysisId}
+                ideaId={idea.id}
+                alreadyTaken={takenByIdea[idea.id] ?? 0}
+              />
+            </div>
           ) : null}
         </Card>
       ))}

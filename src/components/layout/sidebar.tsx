@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, History, LayoutDashboard, Search, Sparkles } from "lucide-react";
+import { Compass, Hammer, History, LayoutDashboard, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 interface NavItem {
@@ -17,6 +17,7 @@ const NAVIGATION: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/discovery", label: "Discovery", icon: Compass },
   { href: "/research", label: "Recherche", icon: Search },
+  { href: "/projects", label: "Vorhaben", icon: Hammer },
   { href: "/history", label: "Historie", icon: History },
 ];
 

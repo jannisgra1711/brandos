@@ -18,6 +18,7 @@ import {
   SeasonalityPanel,
 } from "@/components/analysis/signal-panels";
 import { SourcesPanel } from "@/components/analysis/sources-panel";
+import { projectsForAnalysis } from "@/server/services/project-service";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { PageHeader, Section } from "@/components/ui/section";
 import { formatDateTime, formatNumber } from "@/lib/format";
@@ -48,12 +49,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  */
 export default async function AnalysisPage({ params }: Props) {
   const { id } = await params;
-  const [analysis, summary] = await Promise.all([getAnalysis(id), getAnalysisSummary(id)]);
+  const [analysis, summary, projects] = await Promise.all([
+    getAnalysis(id),
+    getAnalysisSummary(id),
+    projectsForAnalysis(id),
+  ]);
 
   if (!analysis) notFound();
 
   const currentMonth = new Date(analysis.createdAt).getMonth() + 1;
   const { interpretation } = analysis;
+
+  // Wie oft je Idee schon ein Vorhaben entstand. Der Zähler blockiert nichts –
+  // er beantwortet nur die Frage „habe ich das hier schon einmal angefasst?".
+  const takenByIdea: Record<string, number> = {};
+  for (const project of projects) {
+    takenByIdea[project.ideaId] = (takenByIdea[project.ideaId] ?? 0) + 1;
+  }
 
   return (
     <div className="space-y-10">
@@ -121,7 +133,11 @@ export default async function AnalysisPage({ params }: Props) {
         title="Produktideen"
         description="Aus Kombination entstanden, nicht aus Nachbau. Die Bausteine jeder Idee sind ausgewiesen."
       >
-        <IdeaList ideas={interpretation.ideas} />
+        <IdeaList
+          ideas={interpretation.ideas}
+          analysisId={analysis.id}
+          takenByIdea={takenByIdea}
+        />
       </Section>
 
       <Section
